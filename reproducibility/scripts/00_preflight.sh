@@ -55,10 +55,11 @@ if [[ "$actual_commit" != "$expected_commit" ]]; then
     if git -C "$MOTIF_REPO_ROOT" merge-base --is-ancestor "$expected_commit" "$actual_commit"; then
         mapfile -t changed_scientific_files < <(
             git -C "$MOTIF_REPO_ROOT" diff --name-only "$expected_commit..$actual_commit" -- \
-                . ':(exclude).gitignore' ':(exclude)reproducibility/**'
+                . ':(exclude).gitignore' ':(exclude)configs/wandb/default.yaml' \
+                ':(exclude)reproducibility/**'
         )
         if (( ${#changed_scientific_files[@]} == 0 )); then
-            echo "Pinned scientific code is unchanged; HEAD adds only the reproducibility runbook."
+            echo "Pinned scientific code is unchanged; HEAD adds only the runbook and W&B compatibility config."
         elif [[ "${MOTIF_ALLOW_DIFFERENT_COMMIT:-0}" != "1" ]]; then
             echo "Scientific files changed after pinned commit $expected_commit:" >&2
             printf "  %s\n" "${changed_scientific_files[@]}" >&2

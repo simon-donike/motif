@@ -1,0 +1,8 @@
+# Compatibility reconstruction: the upstream repository references this config group, but the
+# file is absent from every reachable upstream commit. Experiment configs provide `name` and
+# `group`; this file provides the remaining WandbLogger defaults needed for composition.
+# Override mode/project/entity from the reproducibility training launcher as appropriate.
+project: motif-reproduction
+entity: null
+mode: offline
+save_code: false

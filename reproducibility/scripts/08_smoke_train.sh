@@ -7,7 +7,6 @@ source "$script_dir/../lib/common.sh"
 
 experiment="fm_pmw"
 execute=0
-install_compat_wandb=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -20,7 +19,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --install-compat-wandb)
-            install_compat_wandb=1
+            echo "Compatibility config is now committed at configs/wandb/default.yaml."
             shift
             ;;
         -h|--help)
@@ -43,25 +42,16 @@ case "$experiment" in
 esac
 
 wandb_config="$MOTIF_REPO_ROOT/configs/wandb/default.yaml"
-compat_config="$script_dir/../configs/wandb/default.yaml"
 
 echo "Experiment: $experiment"
 echo "Dataset: $MOTIF_PREPROCESSED_ROOT"
 echo "Checkpoint root: $MOTIF_REPRO_ROOT/checkpoints"
 echo "Mode: one GPU, one train batch, one validation batch, one epoch"
 
-if [[ ! -f "$wandb_config" && "$install_compat_wandb" == "1" ]]; then
-    mkdir -p "$(dirname "$wandb_config")"
-    cp "$compat_config" "$wandb_config"
-    echo "Installed documented compatibility config: $wandb_config"
-fi
-
 if [[ ! -f "$wandb_config" ]]; then
     echo
     echo "Missing repository config: $wandb_config"
-    echo "The original file was not committed. For a local disabled-W&B smoke test, run:"
-    echo "bash reproducibility/scripts/08_smoke_train.sh --install-compat-wandb"
-    echo "This compatibility file is a documented deviation, not the canonical author config."
+    echo "Restore the committed compatibility file before training."
     exit 1
 fi
 
@@ -70,7 +60,8 @@ if (( execute == 0 )); then
     exit 0
 fi
 
-"$MOTIF_REPO_ROOT/.venv/bin/python" "$script_dir/06_verify_preprocessed.py" --profile local100
+"$MOTIF_REPO_ROOT/.venv/bin/python" "$script_dir/06_verify_preprocessed.py" \
+    --profile "$MOTIF_DEFAULT_PROFILE"
 
 cd "$MOTIF_REPO_ROOT"
 uv run python scripts/train.py \

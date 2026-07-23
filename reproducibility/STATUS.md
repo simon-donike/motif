@@ -16,6 +16,7 @@ Updated: 2026-07-23
 | Preprocessing | Ready, not started | Staged runner and verification documented; requires verified raw data |
 | Processed verification | Not started | Requires preprocessing |
 | Authors' checkpoints | Blocked | No checkpoint source supplied |
-| Canonical W&B config | Blocked | `configs/wandb/default.yaml` missing |
+| Canonical W&B config | Unrecoverable | Compatibility reconstruction committed and documented |
+| Local W&B authentication | Complete | Credentials remain outside Git; local mode configured online |
 | Checkpoint inference | Not started | Requires checkpoint gate |
-| Custom training | Not started | Requires processed data and W&B config decision |
+| Custom training | Ready, not started | Proper launcher/config ready; requires verified processed data |

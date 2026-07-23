@@ -3,8 +3,9 @@
 This directory is the self-contained operational runbook for reproducing MOTIF at commit
 `7b0cc0741b7f15658c8609c9780aaf24dc88b810`.
 
-The preflight permits a repository commit containing only this runbook and `.gitignore` on top of
-that pinned scientific-code commit. Any committed scientific-code change remains a hard failure.
+The preflight permits commits containing this runbook, `.gitignore`, and the documented W&B
+compatibility config on top of that pinned scientific-code commit. Any other committed scientific-
+code change remains a hard failure.
 
 It covers:
 
@@ -94,8 +95,10 @@ After processed data passes verification, checkpoint and model commands are:
 .venv/bin/python reproducibility/scripts/07_audit_checkpoints.py --hash RUN_ID
 
 # Preview a one-batch smoke training run.
-bash reproducibility/scripts/08_smoke_train.sh --install-compat-wandb
 bash reproducibility/scripts/08_smoke_train.sh --experiment fm_pmw
+
+# Preview proper custom training with the ignored local settings.
+bash reproducibility/scripts/11_train.sh --experiment fm_pmw
 
 # Generate predictions after a checkpoint is available.
 bash reproducibility/scripts/09_predict.sh RUN_ID fm_gpm_PI_dt6 test
@@ -114,6 +117,7 @@ processing implementation.
 - [PLAN.md](PLAN.md): complete gated workflow and success criteria.
 - [DATA.md](DATA.md): dataset profiles, exact sizes, paths, and limitations.
 - [PREPROCESSING.md](PREPROCESSING.md): exact staged preprocessing, resume, outputs, and checks.
+- [TRAINING.md](TRAINING.md): W&B setup, smoke/proper training, resume, and HPC adaptation.
 - [CHECKPOINTS.md](CHECKPOINTS.md): required checkpoint layout and current blocker.
 - [HPC.md](HPC.md): cloning and adapting this runbook to a cluster.
 - [STATUS.md](STATUS.md): completed work and outstanding gates.

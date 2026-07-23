@@ -145,9 +145,12 @@ download URL or release.
 
 ## Step 8 — Smoke training
 
+Operational instructions: [TRAINING.md](TRAINING.md).
+
 Actions:
 
-- resolve the missing canonical `configs/wandb/default.yaml`;
+- retain the documented compatibility reconstruction for the unrecoverable W&B config;
+- select disabled, offline, or authenticated online W&B mode;
 - instantiate all four active experiments;
 - run one train and validation batch;
 - save and reload a checkpoint;
@@ -178,6 +181,8 @@ Acceptance gate:
 - metrics match a trusted reference where one is available.
 
 ## Step 10 — Custom/full training
+
+Operational instructions: [TRAINING.md](TRAINING.md).
 
 Actions:
 

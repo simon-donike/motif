@@ -27,6 +27,8 @@ lightning_logs/
 
 # Weights & Biases
 wandb/
+!configs/wandb/
+!configs/wandb/default.yaml
 
 # Jupyter
 .ipynb_checkpoints/
