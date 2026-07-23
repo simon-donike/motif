@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# ------------------------------------------------------------
+# PBS Job options
+# ------------------------------------------------------------
+
+#PBS -N <job_name>
+#PBS -q cpu_std
+#PBS -l walltime=24:00:00
+#PBS -j eo
+
+# Selecting 1 CPU node, with 48 cores per node, and 256 GB of ram per node
+#PBS -l select=1:ncpus=48:mem=256gb
+
+# ------------------------------------------------------------
+# Environment
+# ------------------------------------------------------------
+
+cd $PBS_O_WORKDIR
+module load PrgEnv-gnu
+
+# ------------------------------------------------------------
+# CPU inter node communication variables
+# ------------------------------------------------------------
+
+export OMPI_MCA_pml=ucx
+export UCX_NET_DEVICES=mlx5_1:1
+
+# ------------------------------------------------------------
+# Executable
+# ------------------------------------------------------------
+mpirun <params> <executable>

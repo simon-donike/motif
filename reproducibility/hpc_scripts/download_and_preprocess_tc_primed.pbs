@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# ------------------------------------------------------------
+# PBS Job options
+# ------------------------------------------------------------
+
+# Submit from the repository root:
+#   qsub reproducibility/hpc_scripts/download_and_preprocess_tc_primed.pbs
+#
+# Optional overrides:
+#   qsub -v MOTIF_PROFILE=core6,MOTIF_DOWNLOAD_WORKERS=8,MOTIF_PREPROCESS_WORKERS=4 reproducibility/hpc_scripts/download_and_preprocess_tc_primed.pbs
+
+#PBS -N motif_dl_preproc
+#PBS -q cpu_std
+#PBS -l walltime=48:00:00
+#PBS -j eo
+
+# Selecting 1 CPU node, with 48 cores per node, and 256 GB of ram per node
+#PBS -l select=1:ncpus=48:mem=256gb
+
+# ------------------------------------------------------------
+# Environment
+# ------------------------------------------------------------
+
+set -euo pipefail
+
+cd "$PBS_O_WORKDIR"
+module load PrgEnv-gnu
+
+# Keep uv cache writes inside the checkout unless the submitter overrides it.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$PBS_O_WORKDIR/.uv-cache}"
+
+source reproducibility/lib/common.sh
+
+profile="${MOTIF_PROFILE:-$MOTIF_DEFAULT_PROFILE}"
+download_workers="${MOTIF_DOWNLOAD_WORKERS:-8}"
+preprocess_workers="${MOTIF_PREPROCESS_WORKERS:-4}"
+preprocess_stage="${MOTIF_PREPROCESS_STAGE:-all}"
+preprocess_resume="${MOTIF_PREPROCESS_RESUME:-0}"
+
+preprocess_args=(
+    --profile "$profile"
+    --workers "$preprocess_workers"
+    --stage "$preprocess_stage"
+    --execute
+)
+
+if [[ "$preprocess_resume" == "1" || "$preprocess_resume" == "true" ]]; then
+    preprocess_args+=(--resume)
+fi
+
+# ------------------------------------------------------------
+# CPU inter node communication variables
+# ------------------------------------------------------------
+
+export OMPI_MCA_pml=ucx
+export UCX_NET_DEVICES=mlx5_1:1
+
+# ------------------------------------------------------------
+# Executable
+# ------------------------------------------------------------
+
+echo "Repository: $PBS_O_WORKDIR"
+echo "Profile: $profile"
+echo "Download workers: $download_workers"
+echo "Preprocess workers: $preprocess_workers"
+echo "Preprocess stage: $preprocess_stage"
+echo "Preprocess resume: $preprocess_resume"
+echo "MOTIF_REPRO_ROOT: $MOTIF_REPRO_ROOT"
+
+bash reproducibility/scripts/03_download_tc_primed_subset.sh \
+    --profile "$profile" \
+    --workers "$download_workers" \
+    --execute
+
+bash reproducibility/scripts/05_preprocess_tc_primed.sh "${preprocess_args[@]}"
+
+"$MOTIF_REPO_ROOT/.venv/bin/python" reproducibility/scripts/06_verify_preprocessed.py \
+    --profile "$profile" \
+    --root "$MOTIF_REPRO_ROOT"
