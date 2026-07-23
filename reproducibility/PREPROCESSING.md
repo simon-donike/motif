@@ -25,6 +25,10 @@ paths in `configs/preproc.yaml`. It otherwise retains the pinned preprocessing d
 native PMW grids, the repository's validation/test seasons, a six-hour same-source deduplication
 interval, and normalization over the full selected training set.
 
+The original files are invoked as Python modules (`python -m preproc...`) so their repository-root
+imports resolve consistently in a fresh clone. This changes only import resolution, not the
+scientific entry points or Hydra configuration.
+
 ## Prerequisite gate
 
 Do not preprocess an incomplete download. This must pass first:

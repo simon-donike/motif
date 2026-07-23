@@ -11,9 +11,9 @@ Updated: 2026-07-23
 | TC-PRIMED full inventory | Complete | 1,865.73 GB observed |
 | `local100` profile design | Complete | 100.46 GB, required sensors covered |
 | `full` HPC profile design | Complete | 1.866 TB, all 1987–2024 data |
-| Raw download | Not started | Await explicit `--execute` |
-| Raw verification | Not started | Requires download |
-| Preprocessing | Ready, not started | Staged runner and verification documented; requires verified raw data |
+| Raw download | Complete locally | `local100`: 14,972 files, 100,461,087,970 bytes |
+| Raw verification | Complete locally | Exact manifest/size match; 20 NetCDF samples passed |
+| Preprocessing | Running locally | `local100` all-stage run in detached screen session |
 | Processed verification | Not started | Requires preprocessing |
 | Authors' checkpoints | Blocked | No checkpoint source supplied |
 | Canonical W&B config | Unrecoverable | Compatibility reconstruction committed and documented |

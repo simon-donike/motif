@@ -91,7 +91,7 @@ run_pmw() {
     if (( resume == 1 )); then
         pmw_resume_args+=("+check_older=36500d")
     fi
-    uv run python preproc/tc_primed/prepare_pmw_concat.py \
+    uv run python -m preproc.tc_primed.prepare_pmw_concat \
         "${MOTIF_PATH_OVERRIDES[@]}" \
         "+num_workers=$workers" \
         "+include_seasons=$years_yaml" \
@@ -103,7 +103,7 @@ run_infrared() {
     if (( resume == 1 )); then
         ir_resume_args+=("+check_exist=true")
     fi
-    uv run python preproc/tc_primed/prepare_infrared.py \
+    uv run python -m preproc.tc_primed.prepare_infrared \
         "${MOTIF_PATH_OVERRIDES[@]}" \
         "+num_workers=$workers" \
         "+include_seasons=$years_yaml" \
@@ -111,11 +111,11 @@ run_infrared() {
 }
 
 run_split() {
-    uv run python preproc/train_val_test_split.py "${MOTIF_PATH_OVERRIDES[@]}"
+    uv run python -m preproc.train_val_test_split "${MOTIF_PATH_OVERRIDES[@]}"
 }
 
 run_constants() {
-    uv run python preproc/compute_normalization_constants.py \
+    uv run python -m preproc.compute_normalization_constants \
         "${MOTIF_PATH_OVERRIDES[@]}" \
         "+num_workers=$workers"
 }

@@ -72,6 +72,10 @@ mkdir -p "$MOTIF_REPRO_ROOT/manifests" "$MOTIF_REPRO_ROOT/logs"
 summary_manifest="$MOTIF_REPRO_ROOT/manifests/tc_primed_${profile}_summary.csv"
 objects_manifest="$MOTIF_REPRO_ROOT/manifests/tc_primed_${profile}_objects.csv"
 log_file="$MOTIF_REPRO_ROOT/logs/download_tc_primed_${profile}.log"
+completion_file="$MOTIF_REPRO_ROOT/manifests/tc_primed_${profile}_download_complete.txt"
+
+# A previous success record must not survive a failed rerun.
+rm -f "$completion_file"
 
 "$MOTIF_REPO_ROOT/.venv/bin/python" "$script_dir/02_inventory_tc_primed.py" \
     --profile "$profile" \
@@ -96,7 +100,7 @@ run_downloads() {
         else
             echo "Downloading TC-PRIMED year $year (all basins)"
         fi
-        uv run python preproc/tc_primed/download_tc_primed.py \
+        uv run python -m preproc.tc_primed.download_tc_primed \
             "${MOTIF_PATH_OVERRIDES[@]}" \
             "+year=$year" \
             "${basin_args[@]}" \
@@ -106,7 +110,20 @@ run_downloads() {
 
 run_downloads 2>&1 | tee -a "$log_file"
 
-echo "Download commands completed."
-echo "Object manifest: $objects_manifest"
-echo "Log: $log_file"
-echo "Run 04_verify_raw_tc_primed.py before preprocessing."
+completion_tmp="$(mktemp "$MOTIF_REPRO_ROOT/manifests/.download_complete.XXXXXX")"
+{
+    echo "profile=$profile"
+    echo "expected_files=$(awk -F, 'END {print $3}' "$summary_manifest")"
+    echo "expected_bytes=$expected_bytes"
+    echo "objects_manifest=$objects_manifest"
+    echo "completed_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$completion_tmp"
+mv "$completion_tmp" "$completion_file"
+
+{
+    echo "Download commands completed."
+    echo "Completion record: $completion_file"
+    echo "Object manifest: $objects_manifest"
+    echo "Log: $log_file"
+    echo "Run 04_verify_raw_tc_primed.py before preprocessing."
+} | tee -a "$log_file"

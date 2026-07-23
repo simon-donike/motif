@@ -113,6 +113,11 @@ Default safety settings:
 Budgets do not include preprocessed data, checkpoints, predictions, logs, or temporary working
 space. Override them with `MOTIF_RAW_BUDGET_BYTES` and `MOTIF_STORAGE_RESERVE_BYTES`.
 
+After every successful download, the launcher writes both its completion marker to the durable
+download log and an atomic `manifests/tc_primed_<PROFILE>_download_complete.txt` record. A failed
+or interrupted rerun cannot leave a stale success record. Raw verification, rather than this
+record alone, remains the required preprocessing gate.
+
 ## Local configuration
 
 Copy `config.example.env` to the Git-ignored `config.local.env` in each clone. The local config
