@@ -37,3 +37,6 @@ models.md
 .mypy_cache/
 .pytest_cache/
 .rsyncignore
+
+# Machine-specific MOTIF reproduction settings
+reproducibility/config.local.env
