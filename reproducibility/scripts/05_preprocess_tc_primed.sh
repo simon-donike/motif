@@ -91,7 +91,7 @@ run_pmw() {
     if (( resume == 1 )); then
         pmw_resume_args+=("+check_older=36500d")
     fi
-    uv run python -m preproc.tc_primed.prepare_pmw_concat \
+    "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.tc_primed.prepare_pmw_concat \
         "${MOTIF_PATH_OVERRIDES[@]}" \
         "+num_workers=$workers" \
         "+include_seasons=$years_yaml" \
@@ -103,7 +103,7 @@ run_infrared() {
     if (( resume == 1 )); then
         ir_resume_args+=("+check_exist=true")
     fi
-    uv run python -m preproc.tc_primed.prepare_infrared \
+    "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.tc_primed.prepare_infrared \
         "${MOTIF_PATH_OVERRIDES[@]}" \
         "+num_workers=$workers" \
         "+include_seasons=$years_yaml" \
@@ -111,11 +111,11 @@ run_infrared() {
 }
 
 run_split() {
-    uv run python -m preproc.train_val_test_split "${MOTIF_PATH_OVERRIDES[@]}"
+    "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.train_val_test_split "${MOTIF_PATH_OVERRIDES[@]}"
 }
 
 run_constants() {
-    uv run python -m preproc.compute_normalization_constants \
+    "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.compute_normalization_constants \
         "${MOTIF_PATH_OVERRIDES[@]}" \
         "+num_workers=$workers"
 }

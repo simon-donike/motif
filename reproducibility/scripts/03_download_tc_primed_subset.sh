@@ -59,7 +59,7 @@ if (( execute == 0 )); then
     echo
     echo "Dry run only. The following repository commands would run:"
     for scope in "${scopes[@]}"; do
-        echo "uv run python preproc/tc_primed/download_tc_primed.py paths=example ... scope=$scope workers=$workers"
+        echo ".venv/bin/python -m preproc.tc_primed.download_tc_primed paths=example ... scope=$scope workers=$workers"
     done
     echo
     echo "Rerun with --execute to inventory the remote objects and start downloading."
@@ -100,7 +100,7 @@ run_downloads() {
         else
             echo "Downloading TC-PRIMED year $year (all basins)"
         fi
-        uv run python -m preproc.tc_primed.download_tc_primed \
+        "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.tc_primed.download_tc_primed \
             "${MOTIF_PATH_OVERRIDES[@]}" \
             "+year=$year" \
             "${basin_args[@]}" \

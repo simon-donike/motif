@@ -1,0 +1,156 @@
+
+Lmod is automatically replacing "cce/18.0.1" with "gcc-native/13.2".
+
+
+Lmod is automatically replacing "PrgEnv-cray/8.6.0" with "PrgEnv-gnu/8.6.0".
+
+
+Due to MODULEPATH changes, the following have been reloaded:
+  1) cray-libsci/24.11.0     2) cray-mpich-ucx/8.1.31
+
+Repository: /lustre/scratch/1054/tropical_cyclone_dynamics/code/motif
+Profile: extended8
+Download workers: 8
+Preprocess workers: 4
+Preprocess stage: all
+Preprocess resume: 1
+Force download: 0
+MOTIF_REPRO_ROOT: /lustre/scratch/1054/tropical_cyclone_dynamics/data/motif_repro
+Download completion marker: /lustre/scratch/1054/tropical_cyclone_dynamics/data/motif_repro/manifests/tc_primed_extended8_download_complete.txt
+PBS driver log: /lustre/scratch/1054/tropical_cyclone_dynamics/data/motif_repro/logs/pbs_download_and_preprocess_extended8_128460.pbs_20260723T210335Z.log
+Download phase log: /lustre/scratch/1054/tropical_cyclone_dynamics/data/motif_repro/logs/download_tc_primed_extended8.log
+Preprocess phase log: /lustre/scratch/1054/tropical_cyclone_dynamics/data/motif_repro/logs/preprocess_tc_primed_extended8_all.log
+Profile: extended8
+Download scopes: 1993 2003 2009 2014 2015 2016 2021 2022
+Expected raw bytes: 518648600908
+Budget bytes: 600000000000
+Destination: /lustre/scratch/1054/tropical_cyclone_dynamics/data/motif_repro/raw/tc_primed
+Workers: 8
+Repository: /lustre/scratch/1054/tropical_cyclone_dynamics/code/motif
+Storage root: /lustre/scratch/1054/tropical_cyclone_dynamics/data/motif_repro
+TC-PRIMED destination: /lustre/scratch/1054/tropical_cyclone_dynamics/data/motif_repro/raw/tc_primed
+Profile: extended8
+Years: 1993,2003,2009,2014,2015,2016,2021,2022
+Expected raw bytes: 518648600908
+Raw budget bytes: 600000000000
+Pinned scientific code is unchanged; HEAD adds only the runbook and W&B compatibility config.
+Available bytes on destination filesystem: 2642575861813248
+Required free-space reserve beyond raw profile: 300000000000
+Python 3.12.11
+Resolved 214 packages in 1ms
+nvidia-smi not found; acceptable on a download/login node.
+Preflight passed. No files were downloaded or created.
+Traceback (most recent call last):
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 204, in _new_conn
+    sock = connection.create_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/util/connection.py", line 85, in create_connection
+    raise err
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/util/connection.py", line 73, in create_connection
+    sock.connect(sa)
+OSError: [Errno 101] Network is unreachable
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/httpsession.py", line 465, in send
+    urllib_response = conn.urlopen(
+                      ^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/util/retry.py", line 449, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/util/util.py", line 39, in reraise
+    raise value
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 759, in connect
+    self.sock = sock = self._new_conn()
+                       ^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 219, in _new_conn
+    raise NewConnectionError(
+urllib3.exceptions.NewConnectionError: AWSHTTPSConnection(host='noaa-nesdis-tcprimed-pds.s3.amazonaws.com', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/reproducibility/scripts/02_inventory_tc_primed.py", line 146, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/reproducibility/scripts/02_inventory_tc_primed.py", line 90, in main
+    for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/paginate.py", line 272, in __iter__
+    response = self._make_request(current_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/paginate.py", line 360, in _make_request
+    return self._method(**current_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/client.py", line 602, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/context.py", line 123, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/client.py", line 1060, in _make_api_call
+    http, parsed_response = self._make_request(
+                            ^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/client.py", line 1084, in _make_request
+    return self._endpoint.make_request(operation_model, request_dict)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/endpoint.py", line 119, in make_request
+    return self._send_request(request_dict, operation_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/endpoint.py", line 200, in _send_request
+    while self._needs_retry(
+          ^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/endpoint.py", line 360, in _needs_retry
+    responses = self._event_emitter.emit(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/hooks.py", line 412, in emit
+    return self._emitter.emit(aliased_event_name, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/hooks.py", line 256, in emit
+    return self._emit(event_name, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/hooks.py", line 239, in _emit
+    response = handler(**kwargs)
+               ^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/retryhandler.py", line 207, in __call__
+    if self._checker(**checker_kwargs):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/retryhandler.py", line 284, in __call__
+    should_retry = self._should_retry(
+                   ^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/retryhandler.py", line 320, in _should_retry
+    return self._checker(attempt_number, response, caught_exception)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/retryhandler.py", line 363, in __call__
+    checker_response = checker(
+                       ^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/retryhandler.py", line 247, in __call__
+    return self._check_caught_exception(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/retryhandler.py", line 416, in _check_caught_exception
+    raise caught_exception
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/endpoint.py", line 279, in _do_get_response
+    http_response = self._send(request)
+                    ^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/endpoint.py", line 383, in _send
+    return self.http_session.send(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/lustre/scratch/1054/tropical_cyclone_dynamics/code/motif/.venv/lib/python3.12/site-packages/botocore/httpsession.py", line 494, in send
+    raise EndpointConnectionError(endpoint_url=request.url, error=e)
+botocore.exceptions.EndpointConnectionError: Could not connect to the endpoint URL: "https://noaa-nesdis-tcprimed-pds.s3.amazonaws.com/?list-type=2&prefix=v01r01%2Ffinal%2F1993%2F&encoding-type=url"

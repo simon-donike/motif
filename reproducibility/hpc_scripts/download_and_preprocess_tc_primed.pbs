@@ -8,11 +8,14 @@
 #   qsub reproducibility/hpc_scripts/download_and_preprocess_tc_primed.pbs
 #
 # Optional overrides:
-#   qsub -v MOTIF_PROFILE=core6,MOTIF_DOWNLOAD_WORKERS=8,MOTIF_PREPROCESS_WORKERS=4 reproducibility/hpc_scripts/download_and_preprocess_tc_primed.pbs
+#   qsub -v MOTIF_PROFILE=core6,MOTIF_PREPROCESS_WORKERS=48 reproducibility/hpc_scripts/download_and_preprocess_tc_primed.pbs
+#
+# This job is preprocessing-only. Download TC-PRIMED first on an internet-enabled
+# node with reproducibility/scripts/03_download_tc_primed_subset.sh.
 
-#PBS -N motif_dl_preproc
+#PBS -N motif_preproc
 #PBS -q cpu_std
-#PBS -l walltime=48:00:00
+#PBS -l walltime=24:00:00
 #PBS -j eo
 
 # Selecting 1 CPU node, with 48 cores per node, and 256 GB of ram per node
@@ -32,11 +35,23 @@ export UV_CACHE_DIR="${UV_CACHE_DIR:-$PBS_O_WORKDIR/.uv-cache}"
 
 source reproducibility/lib/common.sh
 
+if [[ -n "${PBS_NODEFILE:-}" && -f "$PBS_NODEFILE" ]]; then
+    pbs_ncpus="$(wc -l < "$PBS_NODEFILE")"
+else
+    pbs_ncpus="${NCPUS:-48}"
+fi
+
 profile="${MOTIF_PROFILE:-$MOTIF_DEFAULT_PROFILE}"
-download_workers="${MOTIF_DOWNLOAD_WORKERS:-8}"
-preprocess_workers="${MOTIF_PREPROCESS_WORKERS:-4}"
+preprocess_workers="${MOTIF_PREPROCESS_WORKERS:-$pbs_ncpus}"
 preprocess_stage="${MOTIF_PREPROCESS_STAGE:-all}"
-preprocess_resume="${MOTIF_PREPROCESS_RESUME:-0}"
+preprocess_resume="${MOTIF_PREPROCESS_RESUME:-1}"
+download_completion_file="$MOTIF_REPRO_ROOT/manifests/tc_primed_${profile}_download_complete.txt"
+job_id="${PBS_JOBID:-manual}"
+run_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+driver_log="$MOTIF_REPRO_ROOT/logs/pbs_preprocess_tc_primed_${profile}_${job_id}_${run_stamp}.log"
+
+mkdir -p "$MOTIF_REPRO_ROOT/logs"
+exec > >(tee -a "$driver_log") 2>&1
 
 preprocess_args=(
     --profile "$profile"
@@ -55,6 +70,9 @@ fi
 
 export OMPI_MCA_pml=ucx
 export UCX_NET_DEVICES=mlx5_1:1
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
 
 # ------------------------------------------------------------
 # Executable
@@ -62,19 +80,27 @@ export UCX_NET_DEVICES=mlx5_1:1
 
 echo "Repository: $PBS_O_WORKDIR"
 echo "Profile: $profile"
-echo "Download workers: $download_workers"
 echo "Preprocess workers: $preprocess_workers"
 echo "Preprocess stage: $preprocess_stage"
 echo "Preprocess resume: $preprocess_resume"
 echo "MOTIF_REPRO_ROOT: $MOTIF_REPRO_ROOT"
+echo "Download completion marker: $download_completion_file"
+echo "PBS driver log: $driver_log"
+echo "Preprocess phase log: $MOTIF_REPRO_ROOT/logs/preprocess_tc_primed_${profile}_${preprocess_stage}.log"
 
-bash reproducibility/scripts/03_download_tc_primed_subset.sh \
-    --profile "$profile" \
-    --workers "$download_workers" \
-    --execute
+if [[ ! -f "$download_completion_file" ]]; then
+    echo "Download completion marker is missing; refusing to preprocess incomplete raw data." >&2
+    echo "Expected marker: $download_completion_file" >&2
+    exit 1
+fi
+
+"$MOTIF_REPO_ROOT/.venv/bin/python" reproducibility/scripts/04_verify_raw_tc_primed.py \
+    --profile "$profile"
 
 bash reproducibility/scripts/05_preprocess_tc_primed.sh "${preprocess_args[@]}"
 
 "$MOTIF_REPO_ROOT/.venv/bin/python" reproducibility/scripts/06_verify_preprocessed.py \
     --profile "$profile" \
     --root "$MOTIF_REPRO_ROOT"
+
+echo "Finished UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
