@@ -88,6 +88,8 @@ compatible integrity checks.
 
 ## Step 5 — Preprocess PMW and infrared
 
+Operational instructions: [PREPROCESSING.md](PREPROCESSING.md).
+
 Run in this order:
 
 1. `prepare_pmw_concat.py`

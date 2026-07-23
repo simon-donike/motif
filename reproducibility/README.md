@@ -113,6 +113,7 @@ processing implementation.
 
 - [PLAN.md](PLAN.md): complete gated workflow and success criteria.
 - [DATA.md](DATA.md): dataset profiles, exact sizes, paths, and limitations.
+- [PREPROCESSING.md](PREPROCESSING.md): exact staged preprocessing, resume, outputs, and checks.
 - [CHECKPOINTS.md](CHECKPOINTS.md): required checkpoint layout and current blocker.
 - [HPC.md](HPC.md): cloning and adapting this runbook to a cluster.
 - [STATUS.md](STATUS.md): completed work and outstanding gates.

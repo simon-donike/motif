@@ -13,7 +13,7 @@ Updated: 2026-07-23
 | `full` HPC profile design | Complete | 1.866 TB, all 1987–2024 data |
 | Raw download | Not started | Await explicit `--execute` |
 | Raw verification | Not started | Requires download |
-| Preprocessing | Not started | Requires verified raw data |
+| Preprocessing | Ready, not started | Staged runner and verification documented; requires verified raw data |
 | Processed verification | Not started | Requires preprocessing |
 | Authors' checkpoints | Blocked | No checkpoint source supplied |
 | Canonical W&B config | Blocked | `configs/wandb/default.yaml` missing |
