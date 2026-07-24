@@ -220,11 +220,11 @@ class MultiSourceDataset(torch.utils.data.Dataset):
 
         # Filter the dataframe to only keep the rows where source_name is the name of a source
         # in self.sources
-        # source_names = [source.name for source in self.sources]
-        # self.df = self.df[self.df["source_name"].isin(source_names)]
-        # self.df = self.df.reset_index(drop=True)
-        # if len(self.df) == 0:
-        #     raise ValueError("No samples found for the given sources.")
+        source_names = [source.name for source in self.sources]
+        self.df = self.df[self.df["source_name"].isin(source_names)]
+        self.df = self.df.reset_index(drop=True)
+        if len(self.df) == 0:
+            raise ValueError("No samples found for the given sources.")
 
         # Time delta settings
         if dt_max is None:
