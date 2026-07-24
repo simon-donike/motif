@@ -8,6 +8,7 @@ import json
 import math
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from netCDF4 import Dataset
 
@@ -68,6 +69,16 @@ def finite_mapping(path: Path, require_positive: bool = False) -> list[str]:
         elif require_positive and value <= 0:
             errors.append(f"non-positive {path}:{key}={value!r}")
     return errors
+
+
+def json_default(value: object) -> object:
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return float(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    raise TypeError(f"Object of type {value.__class__.__name__} is not JSON serializable")
 
 
 def main() -> int:
@@ -179,9 +190,15 @@ def main() -> int:
         "errors": errors,
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, indent=2) + "\n")
+    report_path.write_text(json.dumps(report, indent=2, default=json_default) + "\n")
 
-    print(json.dumps({key: value for key, value in report.items() if key != "errors"}, indent=2))
+    print(
+        json.dumps(
+            {key: value for key, value in report.items() if key != "errors"},
+            indent=2,
+            default=json_default,
+        )
+    )
     print(f"Error count: {len(errors)}")
     print(f"Full report: {report_path}")
     if errors:
