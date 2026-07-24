@@ -8,7 +8,11 @@
 #   qsub reproducibility/hpc_scripts/train_motif_gpu.pbs
 #
 # Optional overrides:
-#   qsub -v MOTIF_TRAIN_EXPERIMENT=det_PI,MOTIF_TRAIN_DEVICES=4 \
+#   qsub -v MOTIF_TRAIN_EXPERIMENT=det_PI,MOTIF_GPU_TRAIN_DEVICES=4 \
+#       reproducibility/hpc_scripts/train_motif_gpu.pbs
+#
+# Short startup test:
+#   qsub -v MOTIF_GPU_TRAIN_MAX_EPOCHS=1,MOTIF_GPU_LIMIT_TRAIN_BATCHES=2,MOTIF_GPU_LIMIT_VAL_BATCHES=1 \
 #       reproducibility/hpc_scripts/train_motif_gpu.pbs
 #
 # This script assumes the GPU node has no internet access. W&B is forced offline
@@ -39,16 +43,24 @@ job_id="${PBS_JOBID:-manual}"
 run_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 experiment="${MOTIF_TRAIN_EXPERIMENT:-fm_pmw}"
 profile="${MOTIF_PROFILE:-$MOTIF_DEFAULT_PROFILE}"
-devices="${MOTIF_TRAIN_DEVICES:-4}"
-num_nodes="${MOTIF_TRAIN_NUM_NODES:-1}"
-batch_size="${MOTIF_TRAIN_BATCH_SIZE:-1}"
-workers="${MOTIF_TRAIN_WORKERS:-8}"
-max_epochs="${MOTIF_TRAIN_MAX_EPOCHS:-100}"
-accumulate="${MOTIF_TRAIN_ACCUMULATE_GRAD_BATCHES:-4}"
-seed="${MOTIF_TRAIN_SEED:-42}"
-checkpoint_minutes="${MOTIF_CHECKPOINT_TIME_INTERVAL:-30}"
+devices="${MOTIF_GPU_TRAIN_DEVICES:-4}"
+num_nodes="${MOTIF_GPU_TRAIN_NUM_NODES:-1}"
+batch_size="${MOTIF_GPU_TRAIN_BATCH_SIZE:-1}"
+workers="${MOTIF_GPU_TRAIN_WORKERS:-8}"
+max_epochs="${MOTIF_GPU_TRAIN_MAX_EPOCHS:-100}"
+accumulate="${MOTIF_GPU_TRAIN_ACCUMULATE_GRAD_BATCHES:-4}"
+seed="${MOTIF_GPU_TRAIN_SEED:-42}"
+checkpoint_minutes="${MOTIF_GPU_CHECKPOINT_TIME_INTERVAL:-30}"
 run_name="${MOTIF_TRAIN_RUN_NAME:-${experiment}_${job_id}}"
 driver_log="$MOTIF_REPRO_ROOT/logs/pbs_train_${experiment}_${job_id}_${run_stamp}.log"
+extra_train_args=()
+
+if [[ -n "${MOTIF_GPU_LIMIT_TRAIN_BATCHES:-}" ]]; then
+    extra_train_args+=("+trainer.limit_train_batches=$MOTIF_GPU_LIMIT_TRAIN_BATCHES")
+fi
+if [[ -n "${MOTIF_GPU_LIMIT_VAL_BATCHES:-}" ]]; then
+    extra_train_args+=("+trainer.limit_val_batches=$MOTIF_GPU_LIMIT_VAL_BATCHES")
+fi
 
 mkdir -p \
     "$MOTIF_REPRO_ROOT/logs" \
@@ -74,13 +86,33 @@ export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
 export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
 export NUMEXPR_NUM_THREADS="${NUMEXPR_NUM_THREADS:-1}"
 
-# GPU communication settings from the site example. Leave overridable because
-# interface names can differ between GPU partitions.
-export NCCL_IB_HCA="${NCCL_IB_HCA:-${UCX_NET_DEVICES:-}}"
+# Single-node DDP still needs a valid TCP bootstrap interface. The site example
+# hardcoded ib0,ib2, but some GPU nodes do not expose those names, which makes
+# NCCL fail with "Bootstrap : no socket interface found". Default to loopback for
+# this single-node job; allow explicit overrides for site-tuned multi-node runs.
+for var_name in NCCL_SOCKET_IFNAME GLOO_SOCKET_IFNAME NCCL_IB_HCA NVSHMEM_HCA_LIST; do
+    var_value="${!var_name:-}"
+    if [[ "$var_value" == \"=*\" || "$var_value" == \'=* ]]; then
+        var_value="${var_value:2}"
+        var_value="${var_value%\"}"
+        var_value="${var_value%\'}"
+        export "$var_name=$var_value"
+    fi
+done
+
+export NCCL_SOCKET_IFNAME="${MOTIF_GPU_NCCL_SOCKET_IFNAME:-lo}"
+export GLOO_SOCKET_IFNAME="${MOTIF_GPU_GLOO_SOCKET_IFNAME:-$NCCL_SOCKET_IFNAME}"
+
+if [[ -n "${UCX_NET_DEVICES:-}" ]]; then
+    if [[ -z "${NCCL_IB_HCA:-}" || "${NCCL_IB_HCA:-}" == "="* ]]; then
+        export NCCL_IB_HCA="$UCX_NET_DEVICES"
+    fi
+    if [[ -z "${NVSHMEM_HCA_LIST:-}" || "${NVSHMEM_HCA_LIST:-}" == "="* ]]; then
+        export NVSHMEM_HCA_LIST="$UCX_NET_DEVICES"
+    fi
+fi
 export NVSHMEM_ENABLE_NIC_PE_MAPPING="${NVSHMEM_ENABLE_NIC_PE_MAPPING:-1}"
-export NVSHMEM_HCA_LIST="${NVSHMEM_HCA_LIST:-${UCX_NET_DEVICES:-}}"
-export NCCL_SOCKET_IFNAME="${NCCL_SOCKET_IFNAME:-ib0,ib2}"
-export NVSHMEM_BOOTSTRAP_UID_SOCK_IFNAME="${NVSHMEM_BOOTSTRAP_UID_SOCK_IFNAME:-ib0,ib2}"
+export NVSHMEM_BOOTSTRAP_UID_SOCK_IFNAME="${NVSHMEM_BOOTSTRAP_UID_SOCK_IFNAME:-$NCCL_SOCKET_IFNAME}"
 
 echo "Repository: $PBS_O_WORKDIR"
 echo "Profile: $profile"
@@ -95,6 +127,12 @@ echo "W&B dir: $WANDB_DIR"
 echo "Checkpoint root: $MOTIF_REPRO_ROOT/checkpoints"
 echo "Validation dir: $MOTIF_REPRO_ROOT/validation"
 echo "PBS driver log: $driver_log"
+echo "Extra trainer overrides: ${extra_train_args[*]:-<none>}"
+echo "NCCL_SOCKET_IFNAME: ${NCCL_SOCKET_IFNAME:-<unset>}"
+echo "GLOO_SOCKET_IFNAME: ${GLOO_SOCKET_IFNAME:-<unset>}"
+echo "NCCL_IB_HCA: ${NCCL_IB_HCA:-<unset>}"
+echo "Network interfaces:"
+ip -o link show || true
 echo "Started UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 nvidia-smi || true
@@ -115,6 +153,8 @@ bash reproducibility/scripts/11_train.sh \
     --wandb-project "$MOTIF_WANDB_PROJECT" \
     --wandb-entity "$MOTIF_WANDB_ENTITY" \
     --name "$run_name" \
-    --execute
+    --execute \
+    -- \
+    "${extra_train_args[@]}"
 
 echo "Finished UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
