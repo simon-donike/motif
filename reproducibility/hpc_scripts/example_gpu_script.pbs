@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# ------------------------------------------------------------
+# PBS Job options
+# ------------------------------------------------------------
+#PBS -N mot_orig_gpu4
+#PBS -q gpu4_std
+#PBS -l walltime=4:00:00
+#PBS -j eo
+
+
+# --- GPU 4 
+# Selecting 2 GPU nodes, with 96 cores per node, 4 gpus per node, 
+# and 700 GB of ram per node (comment out)
+##PBS -l select=1:ncpus=48:ngpus=4:mem=512gb
+
+# ------------------------------------------------------------
+# Environment
+# ------------------------------------------------------------
+
+# --- linux environment
+cd $PBS_O_WORKDIR
+module load PrgEnv-nvidia
+module load cuda
+
+# --- conda environment
+source ~/miniconda3/bin/activate
+conda activate torch-test
+
+# ------------------------------------------------------------
+# GPU inter node communication variables
+# ------------------------------------------------------------
+
+export NCCL_IB_HCA="$UCX_NET_DEVICES"
+export NVSHMEM_ENABLE_NIC_PE_MAPPING=1
+export NVSHMEM_HCA_LIST="$UCX_NET_DEVICES"
+export NCCL_SOCKET_IFNAME="ib0,ib2"
+export NVSHMEM_BOOTSTRAP_UID_SOCK_IFNAME="ib0,ib2"
+
+# ------------------------------------------------------------
+# Executable
+# ------------------------------------------------------------
+mpirun <params> <executable>

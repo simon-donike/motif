@@ -5,6 +5,17 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$script_dir/../lib/common.sh"
 
+# Keep runtime metadata in the repro tree so offline GPU nodes do not need writable home dirs.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$MOTIF_REPO_ROOT/.uv-cache}"
+export WANDB_DIR="${WANDB_DIR:-$MOTIF_REPRO_ROOT/wandb}"
+export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$MOTIF_REPRO_ROOT/wandb/cache}"
+export WANDB_CONFIG_DIR="${WANDB_CONFIG_DIR:-$MOTIF_REPRO_ROOT/wandb/config}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-$MOTIF_REPRO_ROOT/matplotlib}"
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
+export NUMEXPR_NUM_THREADS="${NUMEXPR_NUM_THREADS:-1}"
+
 experiment="fm_pmw"
 profile="$MOTIF_DEFAULT_PROFILE"
 setup="local"
@@ -114,7 +125,7 @@ if [[ ! -f "$wandb_config" ]]; then
 fi
 
 command=(
-    uv run python scripts/train.py
+    uv run --no-sync python scripts/train.py
     "experiment=$experiment"
     "model=motif_12b_d512"
     "setup=$setup"
