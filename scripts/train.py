@@ -165,7 +165,7 @@ class TrainJob(submitit.helpers.Checkpointable):
 
         trainer = pl.Trainer(
             logger=logger,
-            log_every_n_steps=100,
+            log_every_n_steps=10,
             callbacks=callbacks,
             deterministic=True,
             **trainer_kwargs,
