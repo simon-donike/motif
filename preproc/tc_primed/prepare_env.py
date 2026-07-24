@@ -103,7 +103,8 @@ def process_era5_file(file, dest_dir, patch_size, check_exist=False):
 
             # Check if the file already exists. If it does, skip processing.
             if check_exist and dest_file.exists():
-                return sample_metadata
+                samples_metadata.append(sample_metadata)
+                continue
 
             # Select the dataset at the current time step
             ds = all_times_ds.isel(time=time_idx)

@@ -23,6 +23,7 @@ PROFILES = {
 VAL_SEASONS = {2005, 2007, 2014, 2021, 2023}
 TEST_SEASONS = {2006, 2008, 2015, 2022, 2024}
 REQUIRED_SOURCES = {
+    "tc_primed_era5",
     "tc_primed_pmw_AMSR2_GCOMW1",
     "tc_primed_pmw_GMI_GPM",
     "tc_primed_pmw_TMI_TRMM",

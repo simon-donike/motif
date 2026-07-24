@@ -1,118 +1,151 @@
-# Spatiotemporal data interpolation via multi-source generative modeling in an application to tropical cyclones
+# MOTIF: reproducible fork
 
-AI agents: see [CLAUDE.md](CLAUDE.md) for project context and workflows.
+This repository is a fork of the original
+[dauvillc/motif](https://github.com/dauvillc/motif) implementation of multi-source generative
+modelling for spatiotemporal interpolation of tropical-cyclone observations.
 
-This repository implements a framework for interpolating images of tropical cyclones using multiple sources as input.
+Our goal is to stay as close as possible to the original scientific implementation while making
+the complete workflow easier to reproduce on a workstation and on an HPC system. The model,
+dataset, preprocessing, training, prediction, and evaluation entry points remain the repository's
+original ones. The additions under [`reproducibility/`](reproducibility/) wrap those entry points
+with explicit dataset profiles, configuration, dry runs, storage checks, manifests, verification,
+logging, and provenance capture. They are operational safeguards, not a second implementation of
+the science.
 
-The framework is built with [PyTorch](https://pytorch.org/) and [Lightning](https://lightning.ai/docs/pytorch/stable/). It relies on [Hydra](https://hydra.cc/docs/intro/) for managing configurations and [Weights and Biases](https://wandb.ai/site/) for logging experiments. It includes multiple blocks:
-* A `MultiSourceDataset` and custom `collate_fn` function to quickly assemble batches with a flexible number of sources while limiting the required memory.
-* A mutli-source backbone adapted from DiT adapted for geospatial data.
-* Two `Lightning` modules that implements that receives the output of the `MultiSourceDataset` as input and performs the following tasks:
-  * Embedding each source into two common latent spaces: values and coordinates;
-  * Randomly mask one of the embedded sources in each sample;
-  * Process the embedded sequences through the backbone;
-  * Project the updated values sequences to their original spaces;
-  * Compute the loss between the masked source's original values and the reconstructed values.
-One of the modules is deterministic (trained with the MSE as loss function), while the other is generative using flow matching.
-* Active research program (see [CLAUDE.md](CLAUDE.md), [commands.md](commands.md)):
-  * Deterministic self-supervised PI (`det_PI`);
-  * FM supervised GPM (`fm_PI_gpm`);
-  * FM self-supervised PMW (`fm_pmw`) and PI (`fm_PI`).
-* Training modes: self-supervised (random mask per sample) or supervised (fixed mask target; optional freeze/reset of layers).
+The reproduction runbook is pinned against upstream scientific-code commit
+`7b0cc0741b7f15658c8609c9780aaf24dc88b810`. Preflight checks report unexpected scientific-code
+changes so deviations from that reference are visible and can be documented.
 
-# Repository organization
+## What MOTIF contains
+
+MOTIF uses PyTorch, Lightning, Hydra, and Weights & Biases. It provides:
+
+- a multi-source dataset and memory-conscious collator for a variable number of observations;
+- a geospatial, DiT-inspired multi-source backbone;
+- deterministic reconstruction trained with MSE and generative reconstruction trained with flow matching;
+- self-supervised random source masking and supervised fixed-target training;
+- preprocessing for TC-PRIMED microwave and infrared observations, plus SAR and ERA5 utilities;
+- scripts for training, checkpointing, prediction, quantitative evaluation, spectra, source analysis, and visualization.
+
+The main experiments live in [`configs/experiment/`](configs/experiment/), runtime choices are
+composed through Hydra under [`configs/`](configs/), and the implementation is under
+[`src/motif/`](src/motif/).
+
+## Reproducible quick start
+
+Python 3.12 and [`uv`](https://docs.astral.sh/uv/) are required. Data and outputs are deliberately
+kept outside the Git checkout.
+
+```bash
+cp reproducibility/config.example.env reproducibility/config.local.env
 ```
-motif/
-├── configs/               Hydra configuration files
-│   ├── experiment/        Experiment definitions (model, data, and training settings)
-│   ├── inference_cfg/     Inference configurations (dataset filtering, number of realizations)
-│   ├── eval_class/        Evaluation class configurations
-│   ├── model/             Model architecture configurations
-│   ├── paths/             Environment-specific data paths
-│   └── setup/             Compute setup configurations (local or SLURM)
-├── preproc/               Preprocessing scripts
-│   └── tc_primed/         TC-PRIMED download and preprocessing
-├── scripts/               Entry-point scripts (train.py, make_predictions.py, eval.py)
-└── src/motif/             Main package
-    ├── data/              Dataset, collation, and source definitions
-    ├── eval/              Evaluation metrics and visualizations
-    ├── lightning_module/  Lightning modules (deterministic and flow matching)
-    ├── models/            Model architecture (backbone, embedding, and output layers)
-    └── utils/             Utility functions
+
+Edit the ignored `config.local.env` and set an absolute storage path:
+
+```ini
+MOTIF_REPRO_ROOT=/path/to/large/storage/motif-repro
+MOTIF_DEFAULT_PROFILE=local100
+MOTIF_WANDB_MODE=offline
 ```
 
-# Running experiments
-## Setting up the environment
-The project requires Python 3.12 and uses [uv](https://docs.astral.sh/uv/) for dependency management. To install the dependencies and the package in a virtual environment, run
+Then run the numbered workflow:
+
+```bash
+# Check the checkout, tools, selected data budget, and available storage.
+bash reproducibility/scripts/00_preflight.sh
+
+# Recreate the locked environment and record machine/software provenance.
+bash reproducibility/scripts/01_setup_environment.sh
+
+# Preview the download, then explicitly start it.
+bash reproducibility/scripts/03_download_tc_primed_subset.sh
+bash reproducibility/scripts/03_download_tc_primed_subset.sh --execute
+
+# Verify every selected raw object against the remote inventory.
+.venv/bin/python reproducibility/scripts/04_verify_raw_tc_primed.py
+
+# Preview preprocessing, execute it, and verify its products.
+bash reproducibility/scripts/05_preprocess_tc_primed.sh
+bash reproducibility/scripts/05_preprocess_tc_primed.sh --execute
+.venv/bin/python reproducibility/scripts/06_verify_preprocessed.py
 ```
-uv sync
+
+Commands that download data, preprocess it, or start proper training are dry runs unless
+`--execute` is supplied. Downloads are resumable, constrained by profile-specific byte budgets,
+and produce manifests and logs. Preprocessing invokes the original PMW, infrared, split, and
+normalization scripts in order; `--stage` selects an individual step and `--resume` enables the
+supported existence checks.
+
+## Local subsets and full HPC data
+
+The same workflow accepts `--profile PROFILE`, or uses `MOTIF_DEFAULT_PROFILE`:
+
+| Profile | Intended use | Raw TC-PRIMED selection |
+|---|---|---:|
+| `local100` | Local development and end-to-end testing | 100.46 GB |
+| `core6` | Intermediate six-season run | 362.57 GB |
+| `extended8` | Larger eight-season run | 518.65 GB |
+| `full` | Full HPC reproduction, all basins in 1987–2024 | 1.866 TB |
+
+`local100` is basin-selective but includes every PMW sensor used by the active experiments and has
+separate training, validation, and test seasons. It reproduces the mechanics of the workflow, not
+the numerical results of full-data training. Use `full` for that purpose.
+
+For an HPC clone, use storage visible to transfer, preprocessing, and GPU nodes, set
+`MOTIF_DEFAULT_PROFILE=full`, run environment setup and preflight on the cluster, and adapt a
+Hydra setup from [`configs/setup/example.yaml`](configs/setup/example.yaml). Example PBS download,
+preprocessing, and GPU-training jobs are in
+[`reproducibility/hpc_scripts/`](reproducibility/hpc_scripts/). Site modules, scheduler resources,
+GPU count, precision, and the effective global batch size should be recorded as part of the run.
+See [`reproducibility/HPC.md`](reproducibility/HPC.md) for the migration checklist.
+
+## Training, logging, prediction, and evaluation
+
+All operational scripts use `MOTIF_REPRO_ROOT` for checkpoints, predictions, results, W&B data,
+logs, manifests, and provenance.
+
+```bash
+# One-batch integration check (dry run by default).
+bash reproducibility/scripts/08_smoke_train.sh --experiment fm_pmw
+
+# Proper configurable training: preview, then launch.
+bash reproducibility/scripts/11_train.sh --experiment fm_pmw
+bash reproducibility/scripts/11_train.sh --experiment fm_pmw --name my_run --execute
+
+# Inspect or hash checkpoints received from another machine.
+.venv/bin/python reproducibility/scripts/07_audit_checkpoints.py --hash RUN_ID
+
+# Predict and evaluate a trained run.
+bash reproducibility/scripts/09_predict.sh RUN_ID fm_gpm_PI_dt6 test
+bash reproducibility/scripts/10_evaluate.sh \
+  '{FM: [RUN_ID, fm_gpm_PI_dt6]}' my_evaluation test '[quantitative,visual]'
 ```
-from the repository root. The package can then be used by activating the virtual environment with `source .venv/bin/activate`, or by prefixing commands with `uv run`.
 
-## Setting up the dataset
-The first step is to set the paths for your own environment by creating your own configuration in ```configs/paths/```, using ```configs/paths/example.yaml``` as base. Raw dataset locations are defined there as derived paths from ```raw_datasets``` (```tc_primed```, ```sar_cyclobs```, ```era5_weatherbench```, etc.).
-## Downloading the dataset
-Raw data can be downloaded with Hydra, passing ```paths=<your_paths_config>``` (defaults to ```jz``` via ```configs/preproc.yaml```):
+`11_train.sh` exposes devices, nodes, per-device batch size, workers, gradient accumulation,
+epochs, seed, checkpoint interval, W&B mode/project/entity, resuming, and arbitrary extra Hydra
+overrides. It prints the effective global batch and complete command before execution. W&B can run
+offline for disconnected systems or online after login; processing logs remain under the
+reproduction root.
 
-* TC-PRIMED: ```python preproc/tc_primed/download_tc_primed.py paths=<your_paths_config>```
-* SAR (CyclObs): ```python preproc/sar/download_sar_cyclobs.py paths=<your_paths_config>```
-* ERA5 WeatherBench2 Zarr: ```python preproc/era5/dl_era5_64x32.py paths=<your_paths_config>```
+The wrappers ultimately call the standard entry points:
 
-Optional overrides include ```+year=2015```, ```+basin=AL```, and ```+workers=32``` for TC-PRIMED (calendar year); ```sar_download.workers=4``` and ```era5_download.workers=16``` for the other downloads.
-## Preprocessing
-The dataset can be preprocessing using the following scripts:
-* ```python preproc/tc_primed/prepare_pmw_concat.py paths=<your_paths_config> +num_workers=<n_workers>```
-* ```python preproc/tc_primed/prepare_infrared.py paths=<your_paths_config> +num_workers=<n_workers>```
-* ```python preproc/train_val_test_split.py paths=<your_paths_config>```
-* ```python preproc/compute_normalization_constants.py paths=<your_paths_config> +num_workers=<n_workers>```
+- [`scripts/train.py`](scripts/train.py): train and checkpoint a configured experiment;
+- [`scripts/make_predictions.py`](scripts/make_predictions.py): load a run and write validation or test predictions;
+- [`scripts/eval.py`](scripts/eval.py): compute metrics and generate analyses and visualizations;
+- [`reproducibility/collect_provenance.sh`](reproducibility/collect_provenance.sh): record Git, lockfile, Python, packages, OS, CPU, memory, filesystem, and GPU information.
 
-## Training models
-Similarly to the paths configuration, the first step is to create a configuration in ```configs/setup/``` adapted to your computing environment, using ```configs/setup/exampe.yaml``` as base.
+## Reproduction documentation
 
-A training experiment can be run locally using
-```python scripts/train.py experiment=<experiment_cfg> model=motif_12b_d512 setup=<your_setup_cfg> dataloader.batch_size=2 wandb.name=<name_of_the_experiment> +run_local=true```
-On a SLURM cluster, the training can be directly submitted as a job using
-```python scripts/train.py experiment=<experiment_cfg> model=motif_12b_d512 setup=<your_setup_cfg> dataloader.batch_size=2 wandb.name=<name_of_the_experiment>```
-The following experiment configurations are available in `configs/experiment/`:
+Start with [`reproducibility/README.md`](reproducibility/README.md) for the full gated runbook.
+Supporting documents describe the exact
+[data profiles and storage layout](reproducibility/DATA.md),
+[preprocessing stages](reproducibility/PREPROCESSING.md),
+[training and W&B workflow](reproducibility/TRAINING.md),
+[checkpoint layout](reproducibility/CHECKPOINTS.md), and
+[current reproduction status](reproducibility/STATUS.md).
 
-* `det_PI`: Deterministic, self-supervised, microwave + infrared.
-* `fm_PI_gpm`: Flow matching, supervised, GMI/GPM target on the PI setup.
-* `fm_pmw`: Flow matching, self-supervised, microwave 37/89 GHz only.
-* `fm_PI`: Flow matching, self-supervised, microwave + infrared.
-
-HPC command recipes: [commands.md](commands.md).
-
-Every training run generates a run id that is printed out by the script. That run id is used as Weights and Biases id.
-
-## Making predictions and evaluating
-
-### Making predictions
-
-Predictions are generated using `scripts/make_predictions.py`. The script requires a `run_id` (the Weights and Biases id of the trained model), an inference configuration, and a data split:
-```
-python scripts/make_predictions.py run_id=<run_id> inference_cfg=<inference_cfg> split=<val|test> setup=<your_setup_cfg> +dataloader.batch_size=2
-```
-To run predictions for multiple models in a single command, provide a comma-separated list of run ids and add the `--multirun` flag:
-```
-python scripts/make_predictions.py run_id=<run_id_1>,<run_id_2> inference_cfg=<inference_cfg> split=<val|test> setup=<your_setup_cfg> +dataloader.batch_size=2 --multirun
-```
-The following inference configurations are available in `configs/inference_cfg/`:
-* `fm_gpm_dt1`: Flow matching model, GPM target, 1-hour time window.
-* `det_gpm_dt1`: Deterministic model, GPM target, 1-hour time window.
-* `fm_gpm_dt6`: Flow matching model, GPM target, 6-hour time window.
-* `fm_gpm_PI_dt6`: Flow matching model, GPM target, 6-hour time window, requires at least one microwave and one infrared source.
-* `det_gpm_PI_dt6`: Deterministic model, GPM target, 6-hour time window, requires at least one microwave and one infrared source.
-* `fm_gpm_PI_dt6_past`: Same as `fm_gpm_PI_dt6`, restricting auxiliary sources to those observed before the target.
-* `det_gpm_PI_dt6_past`: Same as `det_gpm_PI_dt6`, restricting auxiliary sources to those observed before the target.
-
-### Evaluation
-
-Evaluation is performed using `scripts/eval.py`. The `models` argument is a dictionary mapping display names to `[run_id, inference_cfg]` pairs, where `inference_cfg` must match the one used during prediction:
-```
-python scripts/eval.py models="{<model_name>: [<run_id>, <inference_cfg>]}" eval_class="[<eval_class_1>, <eval_class_2>]" +eval_name=<name> setup=<your_setup_cfg> num_workers=<n_workers> split=<val|test>
-```
-Multiple models can be compared by including additional entries in the `models` dictionary. The following evaluation classes are available in `configs/eval_class/`:
-* `quantitative`: Computes quantitative metrics (RMSE, bias) aggregated across the dataset.
-* `visual`: Generates visual comparisons of predictions and targets.
-* `spectrum`: Compares the power spectra of predictions and targets.
-* `sources`: Analyses the influence of the number and type of auxiliary sources on performance.
+For direct, non-wrapper use, create environment-specific files from
+[`configs/paths/example.yaml`](configs/paths/example.yaml) and
+[`configs/setup/example.yaml`](configs/setup/example.yaml), then invoke the Python entry points with
+Hydra overrides. The reproducibility wrappers are recommended because they make profile selection,
+verification, logs, and safety checks consistent between local and HPC runs.

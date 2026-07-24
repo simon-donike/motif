@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: $0 [--profile local100|core6|extended8|full] [--stage pmw|infrared|split|constants|all] [--workers N] [--resume] [--execute]"
+            echo "Usage: $0 [--profile local100|core6|extended8|full] [--stage pmw|infrared|era5|split|constants|all] [--workers N] [--resume] [--execute]"
             exit 0
             ;;
         *)
@@ -50,9 +50,9 @@ if ! [[ "$workers" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 case "$stage" in
-    pmw|infrared|split|constants|all) ;;
+    pmw|infrared|era5|split|constants|all) ;;
     *)
-        echo "stage must be pmw, infrared, split, constants, or all" >&2
+        echo "stage must be pmw, infrared, era5, split, constants, or all" >&2
         exit 2
         ;;
 esac
@@ -73,8 +73,9 @@ if (( execute == 0 )); then
     echo "Dry run only. Selected repository entry points:"
     [[ "$stage" == "pmw" || "$stage" == "all" ]] && echo "1. prepare_pmw_concat.py"
     [[ "$stage" == "infrared" || "$stage" == "all" ]] && echo "2. prepare_infrared.py"
-    [[ "$stage" == "split" || "$stage" == "all" ]] && echo "3. train_val_test_split.py"
-    [[ "$stage" == "constants" || "$stage" == "all" ]] && echo "4. compute_normalization_constants.py"
+    [[ "$stage" == "era5" || "$stage" == "all" ]] && echo "3. prepare_env.py (TC-PRIMED ERA5)"
+    [[ "$stage" == "split" || "$stage" == "all" ]] && echo "4. train_val_test_split.py"
+    [[ "$stage" == "constants" || "$stage" == "all" ]] && echo "5. compute_normalization_constants.py"
     echo
     echo "Rerun with --execute after raw verification passes."
     exit 0
@@ -110,6 +111,18 @@ run_infrared() {
         "${ir_resume_args[@]}"
 }
 
+run_era5() {
+    local era5_resume_args=()
+    if (( resume == 1 )); then
+        era5_resume_args+=("+check_exist=true")
+    fi
+    "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.tc_primed.prepare_env \
+        "${MOTIF_PATH_OVERRIDES[@]}" \
+        "+num_workers=$workers" \
+        "+include_seasons=$years_yaml" \
+        "${era5_resume_args[@]}"
+}
+
 run_split() {
     "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.train_val_test_split "${MOTIF_PATH_OVERRIDES[@]}"
 }
@@ -125,11 +138,13 @@ run_preprocessing() {
     case "$stage" in
         pmw) run_pmw ;;
         infrared) run_infrared ;;
+        era5) run_era5 ;;
         split) run_split ;;
         constants) run_constants ;;
         all)
             run_pmw
             run_infrared
+            run_era5
             run_split
             run_constants
             ;;
