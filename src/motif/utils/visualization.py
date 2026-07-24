@@ -9,7 +9,11 @@ from motif.datatypes import Batch, GenerativePrediction, MultisourceTensor, Pred
 
 
 def display_realizations(
-    pred: Prediction, batch: Batch, save_filepath_prefix: str | Path, display_fraction: float = 1.0
+    pred: Prediction,
+    batch: Batch,
+    save_filepath_prefix: str | Path,
+    display_fraction: float = 1.0,
+    wandb_key: str = "validation/realizations",
 ):
     """Given multiple solutions of the flow matching process, creates one figure
     per sample to display the solutions and groundtruth.
@@ -157,11 +161,9 @@ def display_realizations(
             if wandb.run is not None:
                 wandb.log(
                     {
-                        "validation/realizations": wandb.Image(
-                            save_path, caption=str(save_path)
-                        )
+                        wandb_key: wandb.Image(save_path, caption=str(save_path))
                     },
                     commit=False,
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"WARNING: Could not log locally saved image {save_path} to W&B: {exc!r}")

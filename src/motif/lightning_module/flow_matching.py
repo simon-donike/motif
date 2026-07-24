@@ -2,6 +2,7 @@
 tokenizes them, masks a portion of the tokens, and trains a model to predict
 the masked tokens."""
 
+import random
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, cast
 
@@ -551,25 +552,38 @@ class MultisourceFlowMatchingReconstructor(MultisourceAbstractReconstructor):
             batch_size=raw_batch[list(raw_batch.keys())[0]].values.shape[0],
         )
 
-        # METRICS COMPUTATION: only every n epoch and only every k batch.
+        # Generate exactly two validation images per epoch: one fixed and one random.
         if self.validation_dir is not None:
-            if (
-                self.current_epoch % self.compute_metrics_every_n_epochs == 0
-                and batch_idx % self.compute_metrics_every_k_batches == 0
-            ):
+            num_val_batches = self.trainer.num_val_batches
+            if isinstance(num_val_batches, list):
+                num_val_batches = num_val_batches[0]
+            random_batch_idx = (
+                random.Random(self.current_epoch).randrange(1, num_val_batches)
+                if num_val_batches > 1
+                else 0
+            )
+            selected_key = {
+                0: "image_idx_0",
+                random_batch_idx: "img_rand",
+            }.get(batch_idx)
+            if not self.trainer.sanity_checking and selected_key is not None:
                 # Sample with the ODE solver
                 sampling_dict = self.sample(preproc_batch, n_realizations_per_sample=1)
                 sol = sampling_dict.pred
                 avail_flags = sampling_dict.avail
 
-                display_realizations(
-                    GenerativePrediction(
-                        pred=sol, avail=avail_flags, time_grid=sampling_dict.time_grid
-                    ),
-                    raw_batch,
-                    self.validation_dir / f"realizations_{batch_idx}",
-                    display_fraction=1.0,
-                )
+                if self.global_rank == 0:
+                    display_realizations(
+                        GenerativePrediction(
+                            pred=sol, avail=avail_flags, time_grid=sampling_dict.time_grid
+                        ),
+                        raw_batch,
+                        self.validation_dir
+                        / f"epoch_{self.current_epoch}"
+                        / f"{selected_key}_batch_{batch_idx}",
+                        display_fraction=1.0,
+                        wandb_key=selected_key,
+                    )
 
                 # Only keep one realization of the solution for the metrics.
                 sol = {source: sol[source][0] for source in sol}
