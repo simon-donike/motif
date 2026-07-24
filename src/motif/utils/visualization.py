@@ -151,3 +151,17 @@ def display_realizations(
         save_path = f"{save_filepath_prefix}_{sample_idx}.png"
         plt.savefig(save_path)
         plt.close(fig)
+        try:
+            import wandb
+
+            if wandb.run is not None:
+                wandb.log(
+                    {
+                        "validation/realizations": wandb.Image(
+                            save_path, caption=str(save_path)
+                        )
+                    },
+                    commit=False,
+                )
+        except Exception:
+            pass
