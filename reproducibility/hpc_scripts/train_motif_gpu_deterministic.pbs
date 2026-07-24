@@ -5,20 +5,20 @@
 # ------------------------------------------------------------
 #
 # Submit from the repository root:
-#   qsub reproducibility/hpc_scripts/train_motif_gpu.pbs
+#   qsub reproducibility/hpc_scripts/train_motif_gpu_deterministic.pbs
 #
 # Optional overrides:
-#   qsub -v MOTIF_TRAIN_EXPERIMENT=det_PI,MOTIF_GPU_TRAIN_DEVICES=4 \
-#       reproducibility/hpc_scripts/train_motif_gpu.pbs
+#   qsub -v MOTIF_GPU_TRAIN_DEVICES=4 \
+#       reproducibility/hpc_scripts/train_motif_gpu_deterministic.pbs
 #
 # Optional short startup test; omit these variables for a full training run:
 #   qsub -v MOTIF_GPU_TRAIN_MAX_EPOCHS=1,MOTIF_GPU_LIMIT_TRAIN_BATCHES=2,MOTIF_GPU_LIMIT_VAL_BATCHES=1 \
-#       reproducibility/hpc_scripts/train_motif_gpu.pbs
+#       reproducibility/hpc_scripts/train_motif_gpu_deterministic.pbs
 #
 # This script assumes the GPU node has no internet access. W&B is forced offline
 # and all logs, images, checkpoints, and caches are written under MOTIF_REPRO_ROOT.
 
-#PBS -N motif_train
+#PBS -N motif_det_train
 #PBS -q gpu4_std
 #PBS -l walltime=24:00:00
 #PBS -j eo
@@ -41,7 +41,7 @@ source reproducibility/lib/common.sh
 
 job_id="${PBS_JOBID:-manual}"
 run_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-experiment="${MOTIF_TRAIN_EXPERIMENT:-fm_pmw}"
+experiment="${MOTIF_TRAIN_EXPERIMENT:-det_pmw}"
 profile="${MOTIF_PROFILE:-$MOTIF_DEFAULT_PROFILE}"
 devices="${MOTIF_GPU_TRAIN_DEVICES:-4}"
 num_nodes="${MOTIF_GPU_TRAIN_NUM_NODES:-1}"
@@ -51,8 +51,8 @@ max_epochs="${MOTIF_GPU_TRAIN_MAX_EPOCHS:-500}"
 accumulate="${MOTIF_GPU_TRAIN_ACCUMULATE_GRAD_BATCHES:-4}"
 seed="${MOTIF_GPU_TRAIN_SEED:-42}"
 checkpoint_minutes="${MOTIF_GPU_CHECKPOINT_TIME_INTERVAL:-30}"
-run_name="${MOTIF_TRAIN_RUN_NAME:-${experiment}_${job_id}}"
-driver_log="$MOTIF_REPRO_ROOT/logs/pbs_train_${experiment}_${job_id}_${run_stamp}.log"
+run_name="${MOTIF_TRAIN_RUN_NAME:-det_pmw_${job_id}}"
+driver_log="$MOTIF_REPRO_ROOT/logs/pbs_train_deterministic_${experiment}_${job_id}_${run_stamp}.log"
 extra_train_args=()
 
 if [[ -n "${MOTIF_GPU_LIMIT_TRAIN_BATCHES:-}" ]]; then

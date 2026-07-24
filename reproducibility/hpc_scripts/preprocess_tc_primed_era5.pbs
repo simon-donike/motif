@@ -1,0 +1,129 @@
+#!/bin/bash
+
+# ------------------------------------------------------------
+# PBS Job options
+# ------------------------------------------------------------
+#
+# Submit from the repository root:
+#   qsub reproducibility/hpc_scripts/preprocess_tc_primed_era5.pbs
+#
+# Optional overrides:
+#   qsub -v MOTIF_PROFILE=extended8,MOTIF_ERA5_PREPROCESS_WORKERS=48 \
+#       reproducibility/hpc_scripts/preprocess_tc_primed_era5.pbs
+#
+# This job preprocesses the TC-PRIMED environmental/ERA5 files already present
+# in the raw TC-PRIMED tree, then refreshes split CSVs and normalization constants.
+
+#PBS -N motif_era5_pre
+#PBS -q cpu_std
+#PBS -l walltime=24:00:00
+#PBS -j eo
+
+# Selecting 1 CPU node, with 48 cores per node, and 256 GB RAM.
+#PBS -l select=1:ncpus=48:mem=256gb
+
+# ------------------------------------------------------------
+# Environment
+# ------------------------------------------------------------
+
+set -euo pipefail
+
+cd "$PBS_O_WORKDIR"
+module load PrgEnv-gnu
+
+source reproducibility/lib/common.sh
+
+if [[ -n "${PBS_NODEFILE:-}" && -f "$PBS_NODEFILE" ]]; then
+    pbs_ncpus="$(wc -l < "$PBS_NODEFILE")"
+else
+    pbs_ncpus="${NCPUS:-48}"
+fi
+
+profile="${MOTIF_PROFILE:-$MOTIF_DEFAULT_PROFILE}"
+workers="${MOTIF_ERA5_PREPROCESS_WORKERS:-$pbs_ncpus}"
+check_exist="${MOTIF_ERA5_PREPROCESS_RESUME:-true}"
+years_csv="$(motif_years_csv "$profile")"
+years_yaml="[$years_csv]"
+download_completion_file="$MOTIF_REPRO_ROOT/manifests/tc_primed_${profile}_download_complete.txt"
+job_id="${PBS_JOBID:-manual}"
+run_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+driver_log="$MOTIF_REPRO_ROOT/logs/pbs_preprocess_tc_primed_era5_${profile}_${job_id}_${run_stamp}.log"
+era5_log="$MOTIF_REPRO_ROOT/logs/preprocess_tc_primed_era5_${profile}.log"
+
+mkdir -p "$MOTIF_REPRO_ROOT/logs"
+exec > >(tee -a "$driver_log") 2>&1
+
+# Keep runtime state away from read-only home directories.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$MOTIF_REPO_ROOT/.uv-cache}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-$MOTIF_REPRO_ROOT/matplotlib}"
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
+export NUMEXPR_NUM_THREADS="${NUMEXPR_NUM_THREADS:-1}"
+
+# ------------------------------------------------------------
+# Executable
+# ------------------------------------------------------------
+
+echo "Repository: $PBS_O_WORKDIR"
+echo "Profile: $profile"
+echo "Included seasons: $years_yaml"
+echo "Workers: $workers"
+echo "Resume/check existing outputs: $check_exist"
+echo "MOTIF_REPRO_ROOT: $MOTIF_REPRO_ROOT"
+echo "Raw TC-PRIMED root: $MOTIF_TC_PRIMED_ROOT"
+echo "Preprocessed root: $MOTIF_PREPROCESSED_ROOT"
+echo "Download completion marker: $download_completion_file"
+echo "PBS driver log: $driver_log"
+echo "ERA5 phase log: $era5_log"
+echo "Started UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+if [[ ! -f "$download_completion_file" ]]; then
+    echo "Download completion marker is missing; refusing to preprocess incomplete raw data." >&2
+    echo "Expected marker: $download_completion_file" >&2
+    exit 1
+fi
+
+"$MOTIF_REPO_ROOT/.venv/bin/python" reproducibility/scripts/04_verify_raw_tc_primed.py \
+    --profile "$profile"
+
+{
+    echo "ERA5 preprocessing started UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.tc_primed.prepare_env \
+        "${MOTIF_PATH_OVERRIDES[@]}" \
+        "+num_workers=$workers" \
+        "+include_seasons=$years_yaml" \
+        "+check_exist=$check_exist"
+
+    echo "Refreshing split metadata after adding ERA5."
+    "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.train_val_test_split \
+        "${MOTIF_PATH_OVERRIDES[@]}"
+
+    echo "Refreshing normalization constants after adding ERA5."
+    "$MOTIF_REPO_ROOT/.venv/bin/python" -m preproc.compute_normalization_constants \
+        "${MOTIF_PATH_OVERRIDES[@]}" \
+        "+num_workers=$workers"
+    echo "ERA5 preprocessing finished UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} 2>&1 | tee -a "$era5_log"
+
+era5_dir="$MOTIF_PREPROCESSED_ROOT/prepared/tc_primed_era5"
+if [[ ! -s "$era5_dir/source_metadata.json" ]]; then
+    echo "Missing ERA5 source metadata: $era5_dir/source_metadata.json" >&2
+    exit 1
+fi
+if [[ ! -s "$era5_dir/samples_metadata.csv" ]]; then
+    echo "Missing ERA5 samples metadata: $era5_dir/samples_metadata.csv" >&2
+    exit 1
+fi
+era5_samples="$(($(wc -l < "$era5_dir/samples_metadata.csv") - 1))"
+echo "ERA5 samples metadata rows: $era5_samples"
+if (( era5_samples <= 0 )); then
+    echo "ERA5 preprocessing produced no samples." >&2
+    exit 1
+fi
+
+"$MOTIF_REPO_ROOT/.venv/bin/python" reproducibility/scripts/06_verify_preprocessed.py \
+    --profile "$profile" \
+    --root "$MOTIF_REPRO_ROOT"
+
+echo "Finished UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"

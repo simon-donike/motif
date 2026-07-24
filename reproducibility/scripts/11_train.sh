@@ -80,7 +80,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$experiment" in
-    det_PI|fm_PI_gpm|fm_pmw|fm_PI) ;;
+    det_PI|det_pmw|fm_PI_gpm|fm_pmw|fm_PI) ;;
     *) echo "Unsupported active experiment: $experiment" >&2; exit 2 ;;
 esac
 case "$wandb_mode" in
