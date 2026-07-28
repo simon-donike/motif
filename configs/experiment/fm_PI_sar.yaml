@@ -1,0 +1,43 @@
+# @package _global_
+defaults:
+  - override /sources: pmw_ir_sar
+  - override /lightning_module: flow_matching
+  - override /lr_scheduler: finetune
+  - override /metrics: none
+  - override /model: motif_12b_d512
+
+wandb:
+  name: fm_PI_sar
+  group: fm_PI_sar
+
+lightning_module:
+  patch_size: 4
+  mask_only_sources: ['sar']
+
+model:
+  dropout: 0.0
+
+# Validate that fine-tuning only introduces the new SAR source-type layers and
+# removes the checkpoint's PMW reconstruction head.
+checkpoint_transfer:
+  allowed_missing_prefixes:
+    - sourcetype_embeddings.sar.
+    - sourcetype_output_projs.sar.
+  allowed_unexpected_prefixes:
+    - sourcetype_output_projs.pmw.
+
+dataset:
+  train:
+    dt_min: -3.0
+    dt_max: 3.0
+    reference_sources: ['sar_cband']
+    groups_availability:
+      sar:
+        sources: ['sar_cband']
+        availability: [1, 1]
+      pmw:
+        sources: ['pmw']
+        availability: [1, 2]
+      ir:
+        sources: ['infrared']
+        availability: [1, 1]

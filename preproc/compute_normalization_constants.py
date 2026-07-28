@@ -145,9 +145,19 @@ def main(cfg):
     # - For each source type, compute the min and max of each charac var across all sources
     #   of the same type.
     for src_type, srcs in src_types.items():
+        selected_srcs = [src for src in srcs if not process_only or src in process_only]
+        if not selected_srcs:
+            continue
         # Get the charac vars from the first source of the type.
         charac_vars = source_metadata[srcs[0]]["charac_vars"].keys()
         min_max = {charac_var: {"min": np.inf, "max": -np.inf} for charac_var in charac_vars}
+
+        def save_constants(src):
+            directory = constants_dir / src
+            directory.mkdir(parents=True, exist_ok=True)
+            with open(directory / "charac_vars_min_max.json", "w") as file:
+                json.dump(min_max, file)
+
         for src in srcs:
             # Check that all charac vars are present in the source metadata.
             if set(charac_vars) != set(source_metadata[src]["charac_vars"].keys()):
@@ -163,11 +173,12 @@ def main(cfg):
                     min_max[charac_var]["max"] = float(
                         max(min_max[charac_var]["max"], np.max(data))
                     )
-            # Save the min and max for each charac var in that source's constants directory.
-            dir = constants_dir / src
-            dir.mkdir(parents=True, exist_ok=True)
-            with open(dir / "charac_vars_min_max.json", "w") as f:
-                json.dump(min_max, f)
+            # Preserve the original all-source behavior when no process filter is set.
+            if not process_only:
+                save_constants(src)
+        if process_only:
+            for src in selected_srcs:
+                save_constants(src)
 
 
 if __name__ == "__main__":

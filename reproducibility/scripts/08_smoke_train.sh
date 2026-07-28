@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$experiment" in
-    det_PI|fm_PI_gpm|fm_pmw|fm_PI) ;;
+    det_PI|fm_PI_gpm|fm_pmw|fm_PI|fm_PI_sar) ;;
     *)
         echo "Unsupported active experiment: $experiment" >&2
         exit 2
@@ -62,6 +62,10 @@ fi
 
 "$MOTIF_REPO_ROOT/.venv/bin/python" "$script_dir/06_verify_preprocessed.py" \
     --profile "$MOTIF_DEFAULT_PROFILE"
+if [[ "$experiment" == "fm_PI_sar" ]]; then
+    "$MOTIF_REPO_ROOT/.venv/bin/python" "$script_dir/17_verify_sar_preprocessed.py"
+fi
+
 
 cd "$MOTIF_REPO_ROOT"
 uv run python scripts/train.py \

@@ -128,6 +128,14 @@ The scripts use the repository's original downloader and preprocessing entry poi
 budget checks, explicit profiles, logs, and verification; they do not replace the scientific
 processing implementation.
 
+## SAR wind-speed fine-tuning
+
+An optional feature workflow adapts the authors' `fm_PI` checkpoint to predict
+held-out CyclObs SAR `wind_speed` fields conditioned on PMW and infrared observations.
+Its download, preprocessing, fine-tuning, prediction, and evaluation helpers are dry
+runs unless `--execute` is supplied. See [SAR.md](SAR.md) for commands, validation
+gates, the checkpoint-transfer contract, and output layout.
+
 ## Documents
 
 - [PLAN.md](PLAN.md): complete gated workflow and success criteria.

@@ -17,7 +17,10 @@ from torch.utils.data import DataLoader
 from motif.data.collate_fn import multi_source_collate_fn
 from motif.utils.callbacks import UnusedParameterChecker
 from motif.utils.cfg_utils import get_random_code
-from motif.utils.checkpoints import load_experiment_cfg_from_checkpoint
+from motif.utils.checkpoints import (
+    load_experiment_cfg_from_checkpoint,
+    load_validated_state_dict_transfer,
+)
 
 
 class TrainJob(submitit.helpers.Checkpointable):
@@ -110,7 +113,19 @@ class TrainJob(submitit.helpers.Checkpointable):
             # the checkpoint.
             if "reset_output_layers" in cfg and cfg["reset_output_layers"]:
                 former_dict = {k: v for k, v in former_dict.items() if "output_proj" not in k}
-            pl_module.load_state_dict(former_dict, strict=cfg.get("load_state_strict", False))
+            transfer_cfg = cfg.get("checkpoint_transfer")
+            if transfer_cfg is not None:
+                missing_keys, unexpected_keys = load_validated_state_dict_transfer(
+                    pl_module,
+                    former_dict,
+                    allowed_missing_prefixes=transfer_cfg.get("allowed_missing_prefixes", []),
+                    allowed_unexpected_prefixes=transfer_cfg.get("allowed_unexpected_prefixes", []),
+                )
+                print("Validated checkpoint transfer.")
+                print("Newly initialized state keys:", missing_keys)
+                print("Unused checkpoint state keys:", unexpected_keys)
+            else:
+                pl_module.load_state_dict(former_dict, strict=cfg.get("load_state_strict", False))
 
         # Callbacks
         # Create the logs directory if it does not exist
@@ -228,7 +243,9 @@ def main(raw_cfg: DictConfig):
     if grad_accum > 1 and cfg.get("scale_lr_with_grad_accum", False):
         cfg["lr_scheduler"]["max_lr"] *= grad_accum
         cfg["lr_scheduler"]["min_lr"] *= grad_accum
-        print(f"Gradient accumulation: {grad_accum}× — scaled max_lr to {cfg['lr_scheduler']['max_lr']:.2e}")
+        print(
+            f"Gradient accumulation: {grad_accum}× — scaled max_lr to {cfg['lr_scheduler']['max_lr']:.2e}"
+        )
 
     # Create the job object and submit it to the auto executor.
     job = TrainJob(cfg)

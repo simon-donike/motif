@@ -134,6 +134,22 @@ The wrappers ultimately call the standard entry points:
 - [`scripts/eval.py`](scripts/eval.py): compute metrics and generate analyses and visualizations;
 - [`reproducibility/collect_provenance.sh`](reproducibility/collect_provenance.sh): record Git, lockfile, Python, packages, OS, CPU, memory, filesystem, and GPU information.
 
+## SAR wind-speed fine-tuning
+
+The `feature/sar-wind-finetuning` workflow can adapt the provided `fm_PI` checkpoint
+to predict held-out CyclObs SAR `wind_speed` fields from nearby PMW and infrared
+observations:
+
+```bash
+bash reproducibility/scripts/16_prepare_sar_dataset.sh --profile extended8
+bash reproducibility/scripts/18_finetune_pretrained_sar.sh --profile extended8
+bash reproducibility/scripts/19_predict_sar.sh FINE_TUNED_RUN_ID --split test
+```
+
+All helpers are dry runs until `--execute` is supplied. See
+[`reproducibility/SAR.md`](reproducibility/SAR.md) for the data requirements,
+validated checkpoint-transfer contract, training commands, and NetCDF output layout.
+
 ## Reproduction documentation
 
 Start with [`reproducibility/README.md`](reproducibility/README.md) for the full gated runbook.

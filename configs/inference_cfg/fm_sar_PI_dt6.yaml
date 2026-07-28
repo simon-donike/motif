@@ -1,0 +1,32 @@
+# @package _global_
+pred_name: fm_sar_PI_dt6
+
+lightning_module:
+  cfg_scale: null
+  n_realizations_per_sample: 10
+  mask_only_sources: ['sar_cband']
+
+dataset:
+  val:
+    dt_min: -3
+    dt_max: 3
+    reference_sources: ['sar_cband']
+    min_ref_time_delta: 0
+    groups_availability:
+      sar:
+        sources: ['sar_cband']
+        availability: [1, 1]
+      pmw:
+        sources: ['pmw']
+        availability: [1, 2]
+      ir:
+        sources: ['infrared']
+        availability: [1, 1]
+    select_closest: true
+  test:
+    dt_min: ${dataset.val.dt_min}
+    dt_max: ${dataset.val.dt_max}
+    min_ref_time_delta: ${dataset.val.min_ref_time_delta}
+    groups_availability: ${dataset.val.groups_availability}
+    reference_sources: ${dataset.val.reference_sources}
+    select_closest: ${dataset.val.select_closest}

@@ -80,7 +80,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$experiment" in
-    det_PI|det_pmw|det_era5_pmw|fm_PI_gpm|fm_pmw|fm_PI|fm_era5_pmw) ;;
+    det_PI|det_pmw|det_era5_pmw|fm_PI_gpm|fm_pmw|fm_PI|fm_era5_pmw|fm_PI_sar) ;;
     *) echo "Unsupported active experiment: $experiment" >&2; exit 2 ;;
 esac
 case "$wandb_mode" in
@@ -179,6 +179,10 @@ fi
 
 "$MOTIF_REPO_ROOT/.venv/bin/python" "$script_dir/06_verify_preprocessed.py" \
     --profile "$profile"
+if [[ "$experiment" == "fm_PI_sar" ]]; then
+    "$MOTIF_REPO_ROOT/.venv/bin/python" "$script_dir/17_verify_sar_preprocessed.py"
+fi
+
 
 if [[ "$wandb_mode" == "online" ]]; then
     if ! "$MOTIF_REPO_ROOT/.venv/bin/python" -c \

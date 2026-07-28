@@ -97,7 +97,18 @@ def main(cfg):
         print("Error: 'data_url' column missing.")
         return
 
-    urls_to_download = [url for url in df_metadata["data_url"] if pd.notna(url)]
+    include_seasons = cfg.get("include_seasons")
+    download_metadata = df_metadata
+    if include_seasons is not None:
+        include_seasons = {str(season) for season in include_seasons}
+        seasons = df_metadata["sid"].astype(str).str[-4:]
+        download_metadata = df_metadata[seasons.isin(include_seasons)]
+        print(
+            f"Filtered downloads to seasons {sorted(include_seasons)}: "
+            f"{len(download_metadata)} acquisitions."
+        )
+
+    urls_to_download = [url for url in download_metadata["data_url"] if pd.notna(url)]
     total_files = len(urls_to_download)
 
     print(f"Starting parallel download of {total_files} files with {workers} threads...")

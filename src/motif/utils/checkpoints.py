@@ -1,8 +1,10 @@
 """Implements small utility functions for loading checkpoints."""
 
 from pathlib import Path
+from typing import Mapping, Sequence
 
 import torch
+from torch import Tensor, nn
 
 
 def load_experiment_cfg_from_checkpoint(checkpoints_dir, run_id, best_or_latest="latest"):
@@ -58,3 +60,59 @@ def load_weights_intersection(former_dict, current_dict):
         else:
             new_dict[k] = v
     return new_dict
+
+
+def _matches_prefix(key: str, prefixes: Sequence[str]) -> bool:
+    return any(key.startswith(prefix) for prefix in prefixes)
+
+
+def load_validated_state_dict_transfer(
+    module: nn.Module,
+    state_dict: Mapping[str, Tensor],
+    *,
+    allowed_missing_prefixes: Sequence[str] = (),
+    allowed_unexpected_prefixes: Sequence[str] = (),
+) -> tuple[list[str], list[str]]:
+    """Load fine-tuning weights while validating every state-dict incompatibility.
+
+    ``strict=False`` is required when a fine-tuning task adds or removes source-type
+    modules, but using it without checking the returned keys can silently skip unrelated
+    weights. This helper validates missing and unexpected keys against explicit prefix
+    allowlists and always rejects tensors whose shapes changed.
+    """
+
+    current_state = module.state_dict()
+    missing_keys = sorted(set(current_state).difference(state_dict))
+    unexpected_keys = sorted(set(state_dict).difference(current_state))
+    shape_mismatches = sorted(
+        (
+            key,
+            tuple(state_dict[key].shape),
+            tuple(current_state[key].shape),
+        )
+        for key in set(current_state).intersection(state_dict)
+        if state_dict[key].shape != current_state[key].shape
+    )
+
+    invalid_missing = [
+        key for key in missing_keys if not _matches_prefix(key, allowed_missing_prefixes)
+    ]
+    invalid_unexpected = [
+        key for key in unexpected_keys if not _matches_prefix(key, allowed_unexpected_prefixes)
+    ]
+    if invalid_missing or invalid_unexpected or shape_mismatches:
+        details = []
+        if invalid_missing:
+            details.append(f"undeclared missing keys: {invalid_missing}")
+        if invalid_unexpected:
+            details.append(f"undeclared unexpected keys: {invalid_unexpected}")
+        if shape_mismatches:
+            details.append(f"shape mismatches (checkpoint, current): {shape_mismatches}")
+        raise RuntimeError("Invalid checkpoint transfer: " + "; ".join(details))
+
+    incompatible = module.load_state_dict(state_dict, strict=False)
+    if sorted(incompatible.missing_keys) != missing_keys:
+        raise RuntimeError("Checkpoint transfer missing-key validation changed during loading.")
+    if sorted(incompatible.unexpected_keys) != unexpected_keys:
+        raise RuntimeError("Checkpoint transfer unexpected-key validation changed during loading.")
+    return missing_keys, unexpected_keys

@@ -18,6 +18,55 @@ from tqdm import tqdm
 from motif.data.grid_functions import grid_distance_to_point
 
 DATA_VARS = ["wind_speed"]
+LAND_REJECTION_BIT = 1
+
+
+def normalize_seasons(seasons):
+    if seasons is None:
+        return None
+    return {str(season) for season in seasons}
+
+
+def _spatial_values(ds, variable):
+    values = ds[variable]
+    if "time" in values.dims:
+        if values.sizes["time"] != 1:
+            raise ValueError(
+                f"{variable} must contain exactly one time step, found {values.sizes['time']}"
+            )
+        values = values.isel(time=0, drop=True)
+    if set(values.dims) != {"lat", "lon"}:
+        raise ValueError(f"{variable} must have spatial dimensions lat/lon, found {values.dims}")
+    return np.asarray(values.transpose("lat", "lon").values)
+
+
+def extract_cyclobs_wind_fields(ds):
+    """Extract valid wind fields and the land mask from old or current CyclObs files."""
+    if "rejection_flag" in ds:
+        raw_flags = _spatial_values(ds, "rejection_flag")
+        finite_flags = np.isfinite(raw_flags)
+        flags = np.zeros(raw_flags.shape, dtype=np.uint16)
+        flags[finite_flags] = raw_flags[finite_flags].astype(np.uint16)
+        valid = finite_flags & (flags == 0)
+        land_mask = finite_flags & ((flags & LAND_REJECTION_BIT) != 0)
+    elif "mask_flag" in ds:
+        # Legacy CyclObs mask_flag is categorical: 0 valid, 1 land, 2 ice,
+        # 3 invalid, and 4 bright targets.
+        flags = _spatial_values(ds, "mask_flag")
+        valid = np.isfinite(flags) & (flags == 0)
+        land_mask = np.isfinite(flags) & (flags == 1)
+    else:
+        raise KeyError("CyclObs file has neither current rejection_flag nor legacy mask_flag")
+
+    fields = {}
+    for variable in DATA_VARS:
+        values = _spatial_values(ds, variable)
+        if values.shape != valid.shape:
+            raise ValueError(
+                f"{variable} shape {values.shape} does not match mask shape {valid.shape}"
+            )
+        fields[variable] = np.where(valid, values, np.nan)
+    return fields, land_mask
 
 
 def initialize_radar_metadata(dest_dir):
@@ -60,13 +109,12 @@ def process_file(
     Returns:
         dict or None: Sample metadata, or None if the sample is discarded.
     """
-    ds = xr.open_dataset(file, decode_times=False)
-
-    # 1. Extract data variables and coordinates
-    ds = ds[["lat", "lon", "mask_flag"] + DATA_VARS]
-    # - Remove the channel dimension in data variables
-    for var in DATA_VARS:
-        ds[var] = (("lat", "lon"), ds[var].values[0])
+    # 1. Extract data variables, coordinates, and the product validity mask.
+    with xr.open_dataset(file, decode_times=False) as raw_ds:
+        fields, land_mask = extract_cyclobs_wind_fields(raw_ds)
+        lat_1d = raw_ds["lat"].values
+        lon_1d = raw_ds["lon"].values
+    ds = xr.Dataset({variable: (("lat", "lon"), values) for variable, values in fields.items()})
     # - If any variable is fully missing data, skip
     if any(ds[var].isnull().all() for var in DATA_VARS):
         return None
@@ -104,15 +152,11 @@ def process_file(
 
     # 3. Process the data
     # - The "lat" and "lon" variables are given at 1D arrays; convert to a 2D meshgrid
-    lat_1d = ds["lat"].values
-    lon_1d = ds["lon"].values
     lon_1d = (lon_1d + 180) % 360 - 180  # Standardize longitude values
     lon_2d, lat_2d = np.meshgrid(lon_1d, lat_1d)
     ds = ds.assign_coords(
         {"latitude": (("lat", "lon"), lat_2d), "longitude": (("lat", "lon"), lon_2d)}
     )
-    # - Retrieve the land-sea mask
-    land_mask = ds["mask_flag"].values == 0  # only 0 means valid
     # Compute the distance between each grid point and the center of the storm.
     dist_to_center = grid_distance_to_point(
         ds["latitude"].values,
@@ -121,7 +165,7 @@ def process_file(
         storm_lon,
     )
     # Add the land mask and distance to center as new variables.
-    ds["land_mask"] = (("lat", "lon"), land_mask[0])
+    ds["land_mask"] = (("lat", "lon"), land_mask)
     ds["dist_to_center"] = (("lat", "lon"), dist_to_center)
 
     # Save processed data in the netCDF format
@@ -151,7 +195,7 @@ def main(cfg):
     dest_dir = Path(cfg["paths"]["preprocessed_dataset"]) / "prepared" / "sar_cband"
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    include_seasons = cfg.get("include_seasons", None)
+    include_seasons = normalize_seasons(cfg.get("include_seasons", None))
     check_older = cfg.get("check_older", None)
     check_older = pd.to_timedelta(check_older) if check_older is not None else None
 
