@@ -108,6 +108,22 @@ bash reproducibility/scripts/10_evaluate.sh \
   '{FM: [RUN_ID, gpm_PI_dt6]}' my_evaluation test '[quantitative,visual]'
 ```
 
+For the authors' provided `fm_PI` checkpoint, keep generated predictions, visual evaluation images,
+validation images, W&B logs, and fine-tune checkpoints under `reproducibility/anon_output`:
+
+```bash
+# Create the loader-compatible symlink layout for run_id=3hyfu3lz-1.
+bash reproducibility/scripts/12_prepare_pretrained_checkpoint.sh
+
+# Preview, then run a two-batch prediction + visual-evaluation smoke test.
+bash reproducibility/scripts/13_smoke_pretrained_checkpoint.sh
+bash reproducibility/scripts/13_smoke_pretrained_checkpoint.sh --execute
+
+# Preview, then launch a fine-tune run initialized from the authors' weights.
+bash reproducibility/scripts/14_finetune_pretrained_checkpoint.sh
+bash reproducibility/scripts/14_finetune_pretrained_checkpoint.sh --execute
+```
+
 The scripts use the repository's original downloader and preprocessing entry points. They add
 budget checks, explicit profiles, logs, and verification; they do not replace the scientific
 processing implementation.

@@ -1,0 +1,162 @@
+#!/bin/bash
+
+# ------------------------------------------------------------
+# PBS Job options
+# ------------------------------------------------------------
+#
+# Submit from the repository root:
+#   qsub reproducibility/hpc_scripts/train_motif_8gpu_finetune_latest.pbs
+#
+# This starts a fresh optimizer/scheduler run from the latest locally trained
+# OG Motif checkpoint by default:
+#   resume_run_id=xtq57xeh, resume_mode=fine_tune
+#
+# Optional overrides:
+#   qsub -v MOTIF_8GPU_RESUME_RUN_ID=OTHER_RUN,MOTIF_8GPU_TRAIN_MAX_EPOCHS=800 \
+#       reproducibility/hpc_scripts/train_motif_8gpu_finetune_latest.pbs
+
+#PBS -N OG_motif
+#PBS -q gpu8_std
+#PBS -l walltime=24:00:00
+#PBS -j eo
+
+# One 8-GPU node. Adjust the queue/select line if the site exposes 8 GPUs
+# through a different queue or resource shape.
+#PBS -l select=1:ncpus=96:ngpus=8:mem=512gb
+
+# ------------------------------------------------------------
+# Environment
+# ------------------------------------------------------------
+
+set -euo pipefail
+
+cd "$PBS_O_WORKDIR"
+module load PrgEnv-nvidia
+module load cuda
+
+source reproducibility/lib/common.sh
+
+job_id="${PBS_JOBID:-manual}"
+run_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+experiment="${MOTIF_8GPU_TRAIN_EXPERIMENT:-det_era5_pmw}"
+profile="${MOTIF_8GPU_PROFILE:-$MOTIF_DEFAULT_PROFILE}"
+devices="${MOTIF_8GPU_TRAIN_DEVICES:-8}"
+num_nodes="${MOTIF_8GPU_TRAIN_NUM_NODES:-1}"
+batch_size="${MOTIF_8GPU_TRAIN_BATCH_SIZE:-2}"
+workers="${MOTIF_8GPU_TRAIN_WORKERS:-8}"
+max_epochs="${MOTIF_8GPU_TRAIN_MAX_EPOCHS:-500}"
+accumulate="${MOTIF_8GPU_TRAIN_ACCUMULATE_GRAD_BATCHES:-1}"
+seed="${MOTIF_8GPU_TRAIN_SEED:-42}"
+checkpoint_minutes="${MOTIF_8GPU_CHECKPOINT_TIME_INTERVAL:-30}"
+resume_run_id="${MOTIF_8GPU_RESUME_RUN_ID:-xtq57xeh}"
+resume_mode="${MOTIF_8GPU_RESUME_MODE:-fine_tune}"
+run_name="${MOTIF_8GPU_TRAIN_RUN_NAME:-${experiment}_8gpu_ft_${resume_run_id}_${job_id}}"
+driver_log="$MOTIF_REPRO_ROOT/logs/pbs_train_${experiment}_8gpu_ft_${job_id}_${run_stamp}.log"
+extra_train_args=()
+
+if [[ -n "${MOTIF_8GPU_LIMIT_TRAIN_BATCHES:-}" ]]; then
+    extra_train_args+=("+trainer.limit_train_batches=$MOTIF_8GPU_LIMIT_TRAIN_BATCHES")
+fi
+if [[ -n "${MOTIF_8GPU_LIMIT_VAL_BATCHES:-}" ]]; then
+    extra_train_args+=("+trainer.limit_val_batches=$MOTIF_8GPU_LIMIT_VAL_BATCHES")
+fi
+
+mkdir -p \
+    "$MOTIF_REPRO_ROOT/logs" \
+    "$MOTIF_REPRO_ROOT/wandb/cache" \
+    "$MOTIF_REPRO_ROOT/wandb/config" \
+    "$MOTIF_REPRO_ROOT/matplotlib" \
+    "$MOTIF_REPRO_ROOT/checkpoints" \
+    "$MOTIF_REPRO_ROOT/validation"
+
+exec > >(tee -a "$driver_log") 2>&1
+
+# Keep all runtime state away from home directories.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$MOTIF_REPO_ROOT/.uv-cache}"
+export WANDB_MODE=offline
+export WANDB_DIR="${WANDB_DIR:-$MOTIF_REPRO_ROOT/wandb}"
+export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$MOTIF_REPRO_ROOT/wandb/cache}"
+export WANDB_CONFIG_DIR="${WANDB_CONFIG_DIR:-$MOTIF_REPRO_ROOT/wandb/config}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-$MOTIF_REPRO_ROOT/matplotlib}"
+
+# Avoid CPU library thread storms inside dataloader/model worker processes.
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
+export NUMEXPR_NUM_THREADS="${NUMEXPR_NUM_THREADS:-1}"
+
+# Single-node DDP still needs a valid TCP bootstrap interface.
+for var_name in NCCL_SOCKET_IFNAME GLOO_SOCKET_IFNAME NCCL_IB_HCA NVSHMEM_HCA_LIST; do
+    var_value="${!var_name:-}"
+    if [[ "$var_value" == \"=*\" || "$var_value" == \'=* ]]; then
+        var_value="${var_value:2}"
+        var_value="${var_value%\"}"
+        var_value="${var_value%\'}"
+        export "$var_name=$var_value"
+    fi
+done
+
+export NCCL_SOCKET_IFNAME="${MOTIF_8GPU_NCCL_SOCKET_IFNAME:-lo}"
+export GLOO_SOCKET_IFNAME="${MOTIF_8GPU_GLOO_SOCKET_IFNAME:-$NCCL_SOCKET_IFNAME}"
+
+if [[ -n "${UCX_NET_DEVICES:-}" ]]; then
+    if [[ -z "${NCCL_IB_HCA:-}" || "${NCCL_IB_HCA:-}" == "="* ]]; then
+        export NCCL_IB_HCA="$UCX_NET_DEVICES"
+    fi
+    if [[ -z "${NVSHMEM_HCA_LIST:-}" || "${NVSHMEM_HCA_LIST:-}" == "="* ]]; then
+        export NVSHMEM_HCA_LIST="$UCX_NET_DEVICES"
+    fi
+fi
+export NVSHMEM_ENABLE_NIC_PE_MAPPING="${NVSHMEM_ENABLE_NIC_PE_MAPPING:-1}"
+export NVSHMEM_BOOTSTRAP_UID_SOCK_IFNAME="${NVSHMEM_BOOTSTRAP_UID_SOCK_IFNAME:-$NCCL_SOCKET_IFNAME}"
+
+echo "Repository: $PBS_O_WORKDIR"
+echo "Profile: $profile"
+echo "Experiment: $experiment"
+echo "Run name: $run_name"
+echo "Resume run: $resume_run_id"
+echo "Resume mode: $resume_mode"
+echo "Devices x nodes: $devices x $num_nodes"
+echo "Per-device batch: $batch_size"
+echo "Gradient accumulation: $accumulate"
+echo "Effective global batch: $((devices * num_nodes * batch_size * accumulate))"
+echo "Epochs: $max_epochs"
+echo "Data root: $MOTIF_REPRO_ROOT"
+echo "W&B mode: offline"
+echo "W&B dir: $WANDB_DIR"
+echo "Checkpoint root: $MOTIF_REPRO_ROOT/checkpoints"
+echo "Validation dir: $MOTIF_REPRO_ROOT/validation"
+echo "PBS driver log: $driver_log"
+echo "Extra trainer overrides: ${extra_train_args[*]:-<none>}"
+echo "NCCL_SOCKET_IFNAME: ${NCCL_SOCKET_IFNAME:-<unset>}"
+echo "GLOO_SOCKET_IFNAME: ${GLOO_SOCKET_IFNAME:-<unset>}"
+echo "NCCL_IB_HCA: ${NCCL_IB_HCA:-<unset>}"
+echo "Network interfaces:"
+ip -o link show || true
+echo "Started UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+nvidia-smi || true
+
+bash reproducibility/scripts/11_train.sh \
+    --experiment "$experiment" \
+    --profile "$profile" \
+    --setup local \
+    --devices "$devices" \
+    --num-nodes "$num_nodes" \
+    --batch-size "$batch_size" \
+    --workers "$workers" \
+    --max-epochs "$max_epochs" \
+    --accumulate-grad-batches "$accumulate" \
+    --seed "$seed" \
+    --checkpoint-minutes "$checkpoint_minutes" \
+    --wandb-mode offline \
+    --wandb-project "$MOTIF_WANDB_PROJECT" \
+    --wandb-entity "$MOTIF_WANDB_ENTITY" \
+    --name "$run_name" \
+    --resume-run-id "$resume_run_id" \
+    --resume-mode "$resume_mode" \
+    --execute \
+    -- \
+    "${extra_train_args[@]}"
+
+echo "Finished UTC: $(date -u +%Y-%m-%dT%H:%M:%SZ)"

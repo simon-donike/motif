@@ -52,6 +52,7 @@ MOTIF_WANDB_ENTITY="${MOTIF_WANDB_ENTITY:-}"
 MOTIF_RAW_ROOT="${MOTIF_REPRO_ROOT}/raw"
 MOTIF_TC_PRIMED_ROOT="${MOTIF_RAW_ROOT}/tc_primed"
 MOTIF_PREPROCESSED_ROOT="${MOTIF_REPRO_ROOT}/preprocessed"
+MOTIF_ANON_OUTPUT_ROOT="${MOTIF_ANON_OUTPUT_ROOT:-$MOTIF_REPO_ROOT/reproducibility/anon_output}"
 MOTIF_RAW_BUDGET_BYTES="${MOTIF_RAW_BUDGET_BYTES:-}"
 MOTIF_STORAGE_RESERVE_BYTES="${MOTIF_STORAGE_RESERVE_BYTES:-}"
 
@@ -195,3 +196,22 @@ MOTIF_PATH_OVERRIDES=(
     "paths.predictions=${MOTIF_REPRO_ROOT}/predictions"
     "paths.results=${MOTIF_REPRO_ROOT}/results"
 )
+
+MOTIF_ANON_PATH_OVERRIDES=(
+    "paths.checkpoints=${MOTIF_ANON_OUTPUT_ROOT}/checkpoints"
+    "paths.wandb_logs=${MOTIF_ANON_OUTPUT_ROOT}/wandb"
+    "paths.validation=${MOTIF_ANON_OUTPUT_ROOT}/validation"
+    "paths.predictions=${MOTIF_ANON_OUTPUT_ROOT}/predictions"
+    "paths.results=${MOTIF_ANON_OUTPUT_ROOT}/results"
+)
+
+# Keep runtime metadata out of read-only home directories on shared/HPC systems.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$MOTIF_REPO_ROOT/.uv-cache}"
+export WANDB_DIR="${WANDB_DIR:-$MOTIF_REPRO_ROOT/wandb}"
+export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$MOTIF_REPRO_ROOT/wandb/cache}"
+export WANDB_CONFIG_DIR="${WANDB_CONFIG_DIR:-$MOTIF_REPRO_ROOT/wandb/config}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-$MOTIF_REPRO_ROOT/matplotlib}"
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
+export NUMEXPR_NUM_THREADS="${NUMEXPR_NUM_THREADS:-1}"

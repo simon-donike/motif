@@ -8,7 +8,7 @@ defaults:
   - lightning_module: flow_matching
   - model: ???
   - trainer: default
-  - lr_scheduler: cosine_warmup_50epochs
+  - lr_scheduler: cosine_warmup_epochs
   - optimizer: default_adamw
   - metrics: none
   - experiment: ???

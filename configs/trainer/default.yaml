@@ -1,4 +1,4 @@
-max_epochs: ${lr_scheduler.first_cycle_steps}
+max_epochs: 50
 accelerator: gpu
 devices: ???
 precision: bf16-mixed

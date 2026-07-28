@@ -2,7 +2,7 @@
 defaults:
   - override /sources: era5_pmw
   - override /lightning_module: deterministic
-  - override /lr_scheduler: cosine_warmup_100epochs
+  - override /lr_scheduler: cosine_warmup_epochs
   - override /metrics: none
   - override /model: motif_12b_d512
 

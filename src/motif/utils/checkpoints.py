@@ -36,7 +36,7 @@ def load_experiment_cfg_from_checkpoint(checkpoints_dir, run_id, best_or_latest=
     # The checkpoint includes the whole configuration dict of the experiment, in
     # checkpoint["hyper_parameters"]['cfg']. We'll use this to reproduce
     # the exact configuration of the experiment.
-    checkpoint = torch.load(checkpoint_path, weights_only=False)
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     exp_cfg = checkpoint["hyper_parameters"]["cfg"]
     return exp_cfg, checkpoint_path
 

@@ -21,16 +21,15 @@ if [[ "$split" != "val" && "$split" != "test" ]]; then
 fi
 
 cd "$MOTIF_REPO_ROOT"
-uv run python scripts/make_predictions.py \
+uv run --no-sync python scripts/make_predictions.py \
     "run_id=$run_id" \
     "inference_cfg=$inference_cfg" \
     "split=$split" \
     "setup=local" \
     "${MOTIF_PATH_OVERRIDES[@]}" \
     "+dataloader.batch_size=1" \
-    "+dataloader.num_workers=0" \
+    "dataloader.num_workers=0" \
     "+dataloader.persistent_workers=false" \
     "trainer.devices=1" \
     "run_local=true" \
     "$@"
-

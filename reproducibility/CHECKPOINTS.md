@@ -27,6 +27,24 @@ Historical run IDs mentioned by `commands.md` include:
 
 These identifiers are not download URLs.
 
+## Authors' `fm_PI` checkpoint
+
+The authors' provided checkpoint at
+`reproducibility/pretrained_checkpoints/3hyfu3lz-1-epoch=34-step=91889.ckpt` strictly loads into
+the current `fm_PI` model/config. It is PMW + infrared, not ERA5 + PMW.
+
+Prepare the loader-compatible layout in the anonymous output tree with:
+
+```bash
+bash reproducibility/scripts/12_prepare_pretrained_checkpoint.sh
+```
+
+This creates:
+
+```text
+reproducibility/anon_output/checkpoints/3hyfu3lz-1/3hyfu3lz-1-epoch=34-step=91889.ckpt
+```
+
 ## Provenance required for each checkpoint
 
 Record:
@@ -56,4 +74,3 @@ on CPU, and summarizes its embedded configuration and state dict.
 No public release or checkpoint downloader is present in the repository, and training configures
 W&B with `log_model=False`. Obtain the actual `.ckpt` files from the authors or another verifiable
 source before claiming authors' checkpoint inference has been reproduced.
-

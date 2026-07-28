@@ -21,6 +21,7 @@ outputs/
 logs/
 submitit/
 multirun/
+reproducibility/anon_output/
 
 # PyTorch Lightning
 lightning_logs/

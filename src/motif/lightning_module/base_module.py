@@ -239,10 +239,28 @@ class MultisourceAbstractModule(pl.LightningModule, ABC):
             **self.adamw_kwargs,
         )
 
-        scheduler_interval = self.lr_scheduler_kwargs.pop("interval", "epoch")
+        scheduler_kwargs = dict(self.lr_scheduler_kwargs)
+        scheduler_interval = scheduler_kwargs.pop("interval", "epoch")
+        if scheduler_kwargs.get("first_cycle_steps") is None:
+            if scheduler_interval != "epoch":
+                raise ValueError(
+                    "lr_scheduler.first_cycle_steps must be set when the scheduler interval "
+                    f"is {scheduler_interval!r}."
+                )
+            if self.trainer.max_epochs is None or self.trainer.max_epochs <= 0:
+                raise ValueError(
+                    "lr_scheduler.first_cycle_steps is unset, but trainer.max_epochs is not "
+                    "a positive integer."
+                )
+            scheduler_kwargs["first_cycle_steps"] = self.trainer.max_epochs
+        if scheduler_kwargs.get("warmup_steps", 0) >= scheduler_kwargs["first_cycle_steps"]:
+            raise ValueError(
+                "lr_scheduler.warmup_steps must be smaller than the resolved "
+                "lr_scheduler.first_cycle_steps."
+            )
         scheduler = CosineAnnealingWarmupRestarts(
             optimizer,
-            **self.lr_scheduler_kwargs,
+            **scheduler_kwargs,
         )
         return {
             "optimizer": optimizer,

@@ -24,7 +24,7 @@ if [[ "$split" != "val" && "$split" != "test" ]]; then
 fi
 
 cd "$MOTIF_REPO_ROOT"
-uv run python scripts/eval.py \
+uv run --no-sync python scripts/eval.py \
     "models=$models_spec" \
     "eval_name=$eval_name" \
     "split=$split" \
@@ -34,4 +34,3 @@ uv run python scripts/eval.py \
     "num_workers=4" \
     "run_local=true" \
     "$@"
-

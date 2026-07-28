@@ -77,6 +77,7 @@ uv run python scripts/train.py \
     "trainer.accelerator=gpu" \
     "trainer.devices=1" \
     "trainer.max_epochs=1" \
+    "lr_scheduler.warmup_steps=0" \
     "++trainer.limit_train_batches=1" \
     "++trainer.limit_val_batches=1" \
     "~trainer.strategy" \

@@ -68,7 +68,7 @@ class PredictJob(submitit.helpers.Checkpointable):
             exp_cfg,
             validation_dir=None,
         )
-        ckpt = torch.load(checkpoint_path, weights_only=False)
+        ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
         pl_module.load_state_dict(ckpt["state_dict"])
 
         # Custom BasePredictionWriter to save the preds and targets with metadata (eg coords).
